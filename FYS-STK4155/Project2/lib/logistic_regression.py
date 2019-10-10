@@ -1,3 +1,4 @@
+import numpy as np
 
 def logistic_regression():
     # need to determine:
@@ -10,8 +11,10 @@ def logistic_regression():
 
     # May be useful to implement a Stochastic Gradient Descent method which has
     # an argument "mini-batches". This is useful for the Neural Network later.
+    pass
 
-def gradient_descent_solver(x0, gamma_k = 0.01, max_iter=50, tol=1e-3):
+def gradient_descent_solver(X, y, x0=0, random_state_x0=False,\
+    gamma_k = 0.01, max_iter=500, tol=1e-3):
     """
     Calculates a gradient descent starting from x0.
 
@@ -34,23 +37,32 @@ def gradient_descent_solver(x0, gamma_k = 0.01, max_iter=50, tol=1e-3):
     if gamma_k <= 0:
         raise ValueError("Bad useage: The learning rate is negative.")
 
-    xsol = x0
+    if random_state_x0:
+        len = X.shape[1] # p
+        xsol = (np.random.random(len) - 0.5)*0.7/0.5 # between [-0.7, 0.7]
+        if x0 != 0:
+            print(f"Warning:\n\tRandom state is overwriting the set x0={x0}.")
+    else:
+        xsol = np.ones(X.shape[1])*x0
+
 
     # calculate the first step
     p = calculate_p(X, xsol)
-    delF = delF(X, y, p)
-    step = gamma_k * delF
+    dF = delF(X, y, p)
+    step = gamma_k * dF
 
     i = 0
-    while np.linalg.norm(step) > tol and i < max_iter:
+    while np.linalg.norm(step) >= tol and i <= max_iter:
         xsol -= step
+
         # calculate the next step
         p = calculate_p(X, xsol)
-        delF = delF(X, y, p)
-        step = gamma_k*delF
+        dF = delF(X, y, p)
+        step = gamma_k*dF
         i += 1
 
-    if step <= tol:
+
+    if np.linalg.norm(step) <= tol:
         print("GD reached tolerance.")
     elif i >= max_iter:
         print("GD reached max iteration.")
@@ -74,17 +86,19 @@ def delF(X, y, p):
         Output of which direction F decreases in.
     """
     dF = -X.T @ (y - p)
+
     return dF
 
 def calculate_p(X, xsol):
     """
     Calculates the probability vector using the sigmoid function.
     """
-    p = np.exp(X@xsol)/(1+np.exp(X@xsol))
+    fac = X @ xsol
+    p = 1/(1+np.exp(-fac))  # np.exp(fac)/(1+np.exp(fac)) is strange
     return p
 
-def CGMethods(A, b, x0=0, random_state_x0=False,
-        \ gamma_k = 0.01, max_iter=50, tol=1e-3):
+def CGMethods(X, y, x0=0, random_state_x0=False,\
+    gamma_k = 0.01, max_iter=50, tol=1e-3):
     """
     Conjugate Gradient method for finding solution of non-linear problems.
     Reduces residual error r=b-Ax iteratively. Exact solution yields r=0.
@@ -92,9 +106,9 @@ def CGMethods(A, b, x0=0, random_state_x0=False,
 
     Parameters:
     -----------
-    A : mtx
+    X : mtx
         (N x p) matrix of predictors
-    b : vec
+    y : vec
         (N x 1) vector of targets
     x0 : vec, default np.zeros(p)
         (p x 1) Initial guess solution.
@@ -114,7 +128,7 @@ def CGMethods(A, b, x0=0, random_state_x0=False,
     """
 
     if random_state_x0:
-        len = A.shape[1] # p
+        len = X.shape[1] # p
         xsol = (np.random.random(len) - 0.5)*0.7/0.5 # between [-0.7, 0.7]
         if x0 != 0:
             print(f"Warning:\n\tRandom state is overwriting the set x0={x0}.")
@@ -123,7 +137,7 @@ def CGMethods(A, b, x0=0, random_state_x0=False,
 
     i=0
     while i<max_iter:
-        r = b - A @ x
+        r = y - X @ xsol
         alpha = (r.T@r)/(r.T@A@r)
         xsol -= alpha @ r
         if np.linalg.norm(xsol) < tol:
@@ -131,11 +145,12 @@ def CGMethods(A, b, x0=0, random_state_x0=False,
             break
         i+=1
 
-if i>=max_iter:
+    if i>=max_iter:
         print(f"Max iteration {i} reached.")
 
     return xsol
 
 if __name__ == '__main__':
+    pass
     # logistic_regression()
-    CGMethods()
+    # CGMethods()
