@@ -14,7 +14,7 @@ def logistic_regression():
     pass
 
 def gradient_descent_solver(X, y, x0=0, random_state_x0=False,\
-    gamma_k = 0.01, max_iter=500, tol=1e-3):
+    gamma_k = 0.001, max_iter=500, tol=1e-3):
     """
     Calculates a gradient descent starting from x0.
 
@@ -35,11 +35,11 @@ def gradient_descent_solver(X, y, x0=0, random_state_x0=False,\
         Vector which produces a minimum of F.
     """
     if gamma_k <= 0:
-        raise ValueError("Bad useage: The learning rate is negative.")
+        raise ValueError("Bad useage:\n\tThe learning rate is negative.")
 
     if random_state_x0:
-        len = X.shape[1] # p
-        xsol = (np.random.random(len) - 0.5)*0.7/0.5 # between [-0.7, 0.7]
+        preds = X.shape[1] # p
+        xsol = (np.random.random(preds) - 0.5)*0.7/0.5 # between [-0.7, 0.7]
         if x0 != 0:
             print(f"Warning:\n\tRandom state is overwriting the set x0={x0}.")
     else:
@@ -53,7 +53,7 @@ def gradient_descent_solver(X, y, x0=0, random_state_x0=False,\
 
     i = 0
     while np.linalg.norm(step) >= tol and i <= max_iter:
-        xsol -= step
+        xsol = xsol - step  # not recommended to have -= according to lecture
 
         # calculate the next step
         p = calculate_p(X, xsol)
@@ -85,8 +85,8 @@ def delF(X, y, p):
     dF : vec
         Output of which direction F decreases in.
     """
-    dF = -X.T @ (y - p)
-
+    a = y - p
+    dF = - X.T @ a
     return dF
 
 def calculate_p(X, xsol):
@@ -94,7 +94,7 @@ def calculate_p(X, xsol):
     Calculates the probability vector using the sigmoid function.
     """
     fac = X @ xsol
-    p = 1/(1+np.exp(-fac))  # np.exp(fac)/(1+np.exp(fac)) is strange
+    p = 1./(1+np.exp(-fac)) # np.exp(fac)(1+np.exp(fac))is strange
     return p
 
 def CGMethods(X, y, x0=0, random_state_x0=False,\
