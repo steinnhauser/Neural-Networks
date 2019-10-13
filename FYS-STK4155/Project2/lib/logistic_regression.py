@@ -1,4 +1,5 @@
 import numpy as np
+import sklearn
 
 def logistic_regression():
     # need to determine:
@@ -14,7 +15,7 @@ def logistic_regression():
     pass
 
 def gradient_descent_solver(X, y, x0=0, random_state_x0=False,\
-    gamma_k = 0.001, max_iter=500, tol=1e-3):
+    gamma_k = 0.01, max_iter=500, tol=1e-4):
     """
     Calculates a gradient descent starting from x0.
 
@@ -40,10 +41,26 @@ def gradient_descent_solver(X, y, x0=0, random_state_x0=False,\
     if random_state_x0:
         preds = X.shape[1] # p
         xsol = (np.random.random(preds) - 0.5)*0.7/0.5 # between [-0.7, 0.7]
-        if x0 != 0:
-            print(f"Warning:\n\tRandom state is overwriting the set x0={x0}.")
+        if not type(x0) == int:
+            if not np.equal(x0.all(), 0):
+                print("Useage Warning: Overwriting set x0 with random values.")
+        elif type(x0) == int and x0!=0:
+            print(f"Useage Warning: Overwriting set x0={x0} with random values")
+
     else:
-        xsol = np.ones(X.shape[1])*x0
+        if type(x0) == int:
+            if x0:
+                xsol = np.ones(X.shape[1])*x0
+            else:
+                xsol=np.zeros(X.shape[1])
+        elif type(x0) == np.ndarray:
+            if x0.shape[0]==X.shape[1]: # if len = p
+                xsol = x0
+            else:
+                raise ValueError("Bad useage: x0 was not of length 1 or p.")
+        else:
+            raise\
+        ValueError("Bad useage: x0 was not of type 'int' or 'numpy.ndarray'")
 
 
     # calculate the first step
@@ -52,22 +69,22 @@ def gradient_descent_solver(X, y, x0=0, random_state_x0=False,\
     step = gamma_k * dF
 
     i = 0
-    while np.linalg.norm(step) >= tol and i <= max_iter:
-        xsol = xsol - step  # not recommended to have -= according to lecture
+    while i <= max_iter:
+        xsol = xsol - step
+
+
 
         # calculate the next step
         p = calculate_p(X, xsol)
         dF = delF(X, y, p)
         step = gamma_k*dF
+        if np.linalg.norm(step) <= tol:
+            print("GD reached tolerance.")
+            break
         i += 1
 
-
-    if np.linalg.norm(step) <= tol:
-        print("GD reached tolerance.")
-    elif i >= max_iter:
+    if i >= max_iter:
         print("GD reached max iteration.")
-    else:
-        print("Something went wrong.")
 
     return xsol
 
@@ -95,9 +112,11 @@ def calculate_p(X, xsol):
     """
     fac = X @ xsol
     p = 1./(1+np.exp(-fac)) # np.exp(fac)(1+np.exp(fac))is strange
+    # try to scale?
+    p = sklearn.preprocessing.scale(p)
     return p
 
-def CGMethods(X, y, x0=0, random_state_x0=False,\
+def CGMethod(X, y, x0=0, random_state_x0=False,\
     gamma_k = 0.01, max_iter=50, tol=1e-3):
     """
     Conjugate Gradient method for finding solution of non-linear problems.
@@ -137,8 +156,11 @@ def CGMethods(X, y, x0=0, random_state_x0=False,\
 
     i=0
     while i<max_iter:
-        r = y - X @ xsol
-        alpha = (r.T@r)/(r.T@A@r)
+        # A = What is its relation to X?
+        r = y - A @ xsol
+        den = r.T@r
+        num = r.T @ (A @ r)
+        alpha = (den)/(num)
         xsol -= alpha @ r
         if np.linalg.norm(xsol) < tol:
             print(f"Tolerance {tol} reached.")

@@ -106,6 +106,35 @@ def sklearn_GDRegressor(X, y, intercept=False):
     clf.fit(X,y)
     return clf
 
+def assert_binary_accuracy(y, u, unscaled=True):
+    """Takes in y and prediction u"""
+    if unscaled:
+        # scale by setting the negative values as zero and the positive to one.
+        y_inds = np.where(y>0)
+        u_inds = np.where(u>0)
+        y[y_inds] = 1
+        u[u_inds] = 1
+
+        y_inds = np.where(y<0)
+        u_inds = np.where(u<0)
+        y[y_inds] = 0
+        u[u_inds] = 0
+
+        count = 0
+        for i in range(len(y)):
+            if y[i]==u[i]:
+                count+=1
+
+        return count/len(y)
+    else:
+        count = 0
+        for i in range(len(y)):
+            if y[i]==u[i]:
+                count+=1
+        return count/len(y)
+
+
+
 if __name__ == '__main__':
     X, y = read_in_data("defaulted_cc-clients.xls")
     method = sklearn_GDRegressor(X, y)
