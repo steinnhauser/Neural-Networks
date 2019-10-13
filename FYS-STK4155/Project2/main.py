@@ -9,39 +9,40 @@ def main():
     sd = int(time.time())
     fn = "defaulted_cc-clients.xls"
     X, y = fns.read_in_data(fn, shuffle=True, seed = sd, scale=True)
-    SKL(X,y)
-    GDS(X,y)
-    # CGM(X,y)
+    X, Xt, y, yt = sklearn.model_selection.train_test_split(X, y, \
+            test_size=0.7, random_state=sd)
+    SKL(X, y, Xt, yt)
+    GDS(X, y, Xt, yt)
+    # CGM(X, y, Xt, yt)
 
-def SKL(X, y, yscale=True):
+    neuron()
+
+def SKL(X, y, Xt, yt):
     """Sklearn method"""
     print("-------------------")
     solution = fns.sklearn_GDRegressor(X, y).coef_
-    y_pred = X @ solution
-    if yscale:
-        print("y is being scaled.")
-        y_pred = sklearn.preprocessing.scale(y_pred)
-    a = fns.assert_binary_accuracy(y, y_pred)
+    yp = Xt @ solution # prediction
+    a = fns.assert_binary_accuracy(yt, yp)
     print(f"SKL had accuracy of {100*a:.0f} %")
 
-def GDS(X, y, yscale=True):
+def GDS(X, y, Xt, yt):
     """Gradient Descent solver"""
     print("-------------------")
-    solution = lgr.gradient_descent_solver(X, y, random_state_x0=True)
-    y_pred = X @ solution
-    if yscale:
-        print("y is being scaled.")
-        y_pred = sklearn.preprocessing.scale(y_pred)
-    a = fns.assert_binary_accuracy(y, y_pred)
+    solution = lgr.gradient_descent_solver(X, y, x0=100)
+    yp = Xt @ solution # prediction
+    a = fns.assert_binary_accuracy(yt, yp)
     print(f"GDS had accuracy of {100*a:.0f} %")
 
-def CGM(X, y):
+def CGM(X, y, Xt, yt):
     """Conjugate Gradient method"""
     print("-------------------")
     solution = lgr.CGMethod(X, y, random_state_x0=True)
-    y_pred = X @ solution
-    a = fns.assert_binary_accuracy(y, y_pred)
+    yp = Xt @ solution
+    a = fns.assert_binary_accuracy(yt, yp)
     print(f"CGM had accuracy of {100*a:.0f} %")
+
+def neuron():
+    f = np.vectorize(lambda z: 1./(1+np.exp(z))) # activation function.
 
 
 if __name__ == '__main__':
@@ -60,4 +61,9 @@ y is being scaled.
 GDS had accuracy of 100 %
 -------------------
 Completed in 3.67 seconds.
+"""
+
+"""
+Neural network slides:
+https://compphysics.github.io/MachineLearning/doc/pub/NeuralNet/html/._NeuralNet-bs023.html
 """

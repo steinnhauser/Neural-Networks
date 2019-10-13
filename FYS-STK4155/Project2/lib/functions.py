@@ -126,22 +126,16 @@ def assert_binary_accuracy(y, u, unscaled=True):
     """
     if unscaled:
         # declare y<0.5 to be 0 and y>0.5 to be 1.
-        y_inds = np.where(y>0.5)
-        u_inds = np.where(u>0.5)
-        y[y_inds] = 1
-        u[u_inds] = 1
-
-        y_inds = np.where(y<0.5)
-        u_inds = np.where(u<0.5)
-        y[y_inds] = 0
-        u[u_inds] = 0
+        u[np.where(u>0.5)] = 1
+        u[np.where(u<0.5)] = 0
 
         count = 0
         for i in range(len(y)):
             if y[i]==u[i]:
                 count+=1
-        frac = count/len(y)
+        acc = count/len(y)
         return acc
+        
     else:
         count = 0
         for i in range(len(y)):

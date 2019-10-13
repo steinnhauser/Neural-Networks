@@ -15,7 +15,7 @@ def logistic_regression():
     pass
 
 def gradient_descent_solver(X, y, x0=0, random_state_x0=False,\
-    gamma_k = 0.01, max_iter=5000, tol=1e-3):
+    gamma_k = 0.1, max_iter=50, tol=1e-2):
     """
     Calculates a gradient descent starting from x0.
 
