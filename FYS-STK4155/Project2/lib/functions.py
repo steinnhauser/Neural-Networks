@@ -49,7 +49,6 @@ def read_in_data(fn, headers=False, shuffle=False, seed=0, scale=True):
 
     if scale:
         X = sklearn.preprocessing.scale(X)
-        y = sklearn.preprocessing.scale(y)
 
     if headers:
         headers = df.values[0,1:-2] # headers of X-columns in the same order.
@@ -107,16 +106,33 @@ def sklearn_GDRegressor(X, y, intercept=False):
     return clf
 
 def assert_binary_accuracy(y, u, unscaled=True):
-    """Takes in y and prediction u"""
+    """
+    Takes in testing data y and prediction u and
+    calculates the accuracy of the prediction.
+
+    Parameters:
+    -----------
+    y : vec
+        (N x 1) vector of testing data.
+    u : vec
+        (N x 1) vector of prediction data.
+    unscaled : bool, default True
+        Determines whether the data should be scaled or not.
+
+    Returns:
+    --------
+    acc : float
+        Accuracy of the model in relation to the testing data (between 0 and 1).
+    """
     if unscaled:
-        # scale by setting the negative values as zero and the positive to one.
-        y_inds = np.where(y>0)
-        u_inds = np.where(u>0)
+        # declare y<0.5 to be 0 and y>0.5 to be 1.
+        y_inds = np.where(y>0.5)
+        u_inds = np.where(u>0.5)
         y[y_inds] = 1
         u[u_inds] = 1
 
-        y_inds = np.where(y<0)
-        u_inds = np.where(u<0)
+        y_inds = np.where(y<0.5)
+        u_inds = np.where(u<0.5)
         y[y_inds] = 0
         u[u_inds] = 0
 
@@ -124,15 +140,15 @@ def assert_binary_accuracy(y, u, unscaled=True):
         for i in range(len(y)):
             if y[i]==u[i]:
                 count+=1
-
-        return count/len(y)
+        frac = count/len(y)
+        return acc
     else:
         count = 0
         for i in range(len(y)):
             if y[i]==u[i]:
                 count+=1
-        return count/len(y)
-
+        acc = count/len(y)
+        return acc
 
 
 if __name__ == '__main__':

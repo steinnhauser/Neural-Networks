@@ -15,7 +15,7 @@ def logistic_regression():
     pass
 
 def gradient_descent_solver(X, y, x0=0, random_state_x0=False,\
-    gamma_k = 0.01, max_iter=500, tol=1e-4):
+    gamma_k = 0.01, max_iter=5000, tol=1e-3):
     """
     Calculates a gradient descent starting from x0.
 
@@ -62,7 +62,6 @@ def gradient_descent_solver(X, y, x0=0, random_state_x0=False,\
             raise\
         ValueError("Bad useage: x0 was not of type 'int' or 'numpy.ndarray'")
 
-
     # calculate the first step
     p = calculate_p(X, xsol)
     dF = delF(X, y, p)
@@ -71,9 +70,6 @@ def gradient_descent_solver(X, y, x0=0, random_state_x0=False,\
     i = 0
     while i <= max_iter:
         xsol = xsol - step
-
-
-
         # calculate the next step
         p = calculate_p(X, xsol)
         dF = delF(X, y, p)
@@ -112,8 +108,6 @@ def calculate_p(X, xsol):
     """
     fac = X @ xsol
     p = 1./(1+np.exp(-fac)) # np.exp(fac)(1+np.exp(fac))is strange
-    # try to scale?
-    p = sklearn.preprocessing.scale(p)
     return p
 
 def CGMethod(X, y, x0=0, random_state_x0=False,\
