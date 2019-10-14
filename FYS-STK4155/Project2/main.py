@@ -1,5 +1,6 @@
 import lib.functions as fns
 import lib.logistic_regression as lgr
+import lib.neural_network as nnw
 import sklearn
 import time
 import numpy as np
@@ -9,13 +10,13 @@ def main():
     sd = int(time.time())
     fn = "defaulted_cc-clients.xls"
     X, y = fns.read_in_data(fn, shuffle=True, seed = sd, scale=True)
-    X, Xt, y, yt = sklearn.model_selection.train_test_split(X, y, \
-            test_size=0.7, random_state=sd)
-    SKL(X, y, Xt, yt)
-    GDS(X, y, Xt, yt)
+    # X, Xt, y, yt = sklearn.model_selection.train_test_split(X, y, \
+    #         test_size=0.2, random_state=sd)
+    # SKL(X, y, Xt, yt)
+    # GDS(X, y, Xt, yt)
     # CGM(X, y, Xt, yt)
 
-    neuron()
+    neuron(X, y)
 
 def SKL(X, y, Xt, yt):
     """Sklearn method"""
@@ -41,8 +42,12 @@ def CGM(X, y, Xt, yt):
     a = fns.assert_binary_accuracy(yt, yp)
     print(f"CGM had accuracy of {100*a:.0f} %")
 
-def neuron():
-    f = np.vectorize(lambda z: 1./(1+np.exp(z))) # activation function.
+def neuron(X, y):
+    X, Xt, y, yt = sklearn.model_selection.train_test_split(X, y, \
+            test_size=0.2, random_state=int(time.time()))
+    n1 = nnw.Neuron(X, Xt, y, yt)
+    n1.fb_propogation()
+    # f = np.vectorize(lambda z: 1./(1+np.exp(z))) # activation function.
 
 
 if __name__ == '__main__':
