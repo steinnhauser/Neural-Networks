@@ -43,11 +43,11 @@ def CGM(X, y, Xt, yt):
     print(f"CGM had accuracy of {100*a:.0f} %")
 
 def neuron(X, y):
-    X, Xt, y, yt = sklearn.model_selection.train_test_split(X, y, \
-            test_size=0.2, random_state=int(time.time()))
-    n1 = nnw.Neuron(X, Xt, y, yt)
-    n1.fb_propogation()
-    # f = np.vectorize(lambda z: 1./(1+np.exp(z))) # activation function.
+    n1 = nnw.Neuron(X, y)
+    # n1.fb_propogation()
+    # n1.save_data()
+    n1.load_data()
+    n1.produce_outputs(simulate=True)
 
 
 if __name__ == '__main__':
