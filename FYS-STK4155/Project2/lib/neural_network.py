@@ -4,17 +4,22 @@ import time
 import lib.functions as fns
 
 class Neuron:
-    def __init__(self, X, y, eta=1, n_hlayers=2, nodes=[576000,100,30,24000],\
-            act_str = "sigmoid", biases_str = "zeros", weights_str="zeros",\
-            cost_fn_str = "MSE", train_test_split=True, tol_b=20, tol_w=100,\
-            maxiter=50):
+    def __init__(self, X, y, eta=0.1, n_hlayers=2, nodes=[16,8,1],\
+            act_str = "sigmoid", biases_str = "random", weights_str="random",\
+            cost_fn_str = "MSE", train_test_split=False, tol_b=20, tol_w=100,\
+            tol_mse=1e-3, maxiter=20, xscale=False):
+        if xscale:
+            X = sklearn.preprocessing.scale(X)
         if train_test_split:
             self.X, self.Xt, self.y, self.yt=\
             sklearn.model_selection.train_test_split(X, y, \
                     test_size=0.2, random_state=int(time.time()))
+            nodes = [self.X.shape[0]*self.X.shape[1]] +\
+                    nodes + [self.y.shape[0]]
         else:
             self.X = X
             self.y = y
+            nodes = [len(self.X.reshape(-1))] + nodes
 
         self.eta = eta              # learning rate
         self.n_hlayers = n_hlayers  # no. of hidden layers
@@ -30,6 +35,7 @@ class Neuron:
 
         self.tol_b = tol_b  # bias tolerance
         self.tol_w = tol_w  # weight tolerance
+        self.tol_mse = tol_mse  # mse tolerance
         self.maxiter = maxiter  # max number of f/b propogation iterations
 
     def set_activation(self):
@@ -54,7 +60,7 @@ class Neuron:
             self.biases = np.zeros(self.n_hlayers+1, dtype=np.ndarray)
             for i in range(0, self.n_hlayers+1):
                 # set a bias from each neuron in layer i to each in layer i+1
-                self.biases[i] = np.random.rand(self.nodes[i+1])
+                self.biases[i] = np.random.rand(self.nodes[i+1])*0.1
         else:
             raise SyntaxError("Biases must be 'zeros' or 'random'.")
 
@@ -69,7 +75,8 @@ class Neuron:
             self.weights = np.zeros(self.n_hlayers+1, dtype=np.ndarray)
             for i in range(self.n_hlayers+1):
                 # set a weight from each neuron in layer i to each in layer i+1
-                self.weights[i] = np.random.rand(self.nodes[i+1], self.nodes[i])
+                self.weights[i] = np.random.rand(self.nodes[i+1],\
+                    self.nodes[i])*0.1
                 # this matrix should have dimensions (next layers x prev layers)
         else:
             raise SyntaxError("Weights must be 'zeros' or 'random'.")
@@ -83,6 +90,10 @@ class Neuron:
         else:
             raise SyntaxError("Cost function must be 'MSE'.")
 
+    def set_inputs_outputs(self, X, y):
+        self.X = sklearn.preprocessing.scale(X)
+        self.y = y
+
     def fb_propogation(self):
         """
         Main program which conducts the forward and backwards
@@ -91,23 +102,28 @@ class Neuron:
 
         self.err_b = self.tol_b + 1 # initialize these for the first loop
         self.err_w = self.tol_w + 1
+        self.MSE = self.tol_mse + 1
 
         i=0
-        print("Step:\t Weight error:\t bias error:\t MSE:")
-        while i<self.maxiter and \
-            (abs(self.err_b) > self.tol_b or abs(self.err_w) > self.tol_w):
+        # print("Step:\t Weight error:\t bias error:\t MSE:")
+        while i<self.maxiter and self.MSE > self.tol_mse:
+        # while (i<self.maxiter and self.MSE > self.tol_mse) and \
+        #     (abs(self.err_b) > self.tol_b or abs(self.err_w) > self.tol_w):
             self.feedforward()
             self.backpropogate()
-            print(f"{i}\t{self.err_w:.2f}\t{self.err_b:.2f}\t{self.MSE:.2f}")
-            self.produce_outputs()
+            # print(f"{i}\t{self.err_w:.2f}\t{self.err_b:.2f}\t{self.MSE:.2f}")
+            # print(self.output)
+            # print(i)
             i+=1
 
         if i>=self.maxiter:
-            print("Max iteration reached.")
+            pass
+            # print("Max iteration reached.")
         elif abs(self.err_b) <= self.tol_b and abs(self.err_w) <= self.tol_w:
-            print("Bias and weight errors reached tolerance")
-        print("---------------------------------------")
-        print("Forward/Backward propogation completed.")
+            # print("Bias and weight errors reached tolerance")
+            pass
+        # print("---------------------------------------")
+        # print("Forward/Backward propogation completed.")
 
 
     def feedforward(self):
@@ -117,8 +133,8 @@ class Neuron:
         self.a = np.zeros(self.n_hlayers+2, dtype=np.ndarray)
 
         # Flatten the input data X:
-        self.z[0] = self.X.reshape(-1,)
-        self.a[0] = self.act_fn(self.z[0])
+        # self.z[0] = self.X # .reshape(-1)
+        self.a[0] = self.X # self.act_fn(self.z[0])
 
         for l in range(1, self.n_hlayers+2):
             self.z[l] = self.weights[l-1] @ self.a[l-1] + self.biases[l-1]
@@ -134,30 +150,31 @@ class Neuron:
             d[i] = np.zeros((self.nodes[i+1], self.nodes[i]))
 
         # Last diff element l=L
-        d[-1] = self.act_der(self.output)*2*(self.output- self.y)
+        der1 = self.act_der(self.z[-1])
+        der2 = -2*(self.y - self.output)
+
+        d[-1] = der1 * der2
 
         # set up arrays for the differences of bias and weights:
         diff_b = np.zeros(self.n_hlayers+1, dtype=np.ndarray)
         diff_w = np.zeros(self.n_hlayers+1, dtype=np.ndarray)
 
         diff_b[-1] = d[-1]
-        diff_w[-1] = d[-1].reshape(-1,1) @ self.a[-2].reshape(1,-1)
+        diff_w[-1] = np.meshgrid(self.a[-2],d[-1])[0]
 
         for l in range(self.n_hlayers-1, -1, -1):
-            d[l] = self.weights[l+1].T @ d[l+1]
+            d[l] = (self.weights[l+1].T @ d[l+1]) * self.act_der(self.z[l+1])
             diff_b[l] = d[l]
-            diff_w[l] = \
-                d[l].reshape(-1,1) @ self.act_der(self.z[l]).reshape(1,-1)
-
+            diff_w[l] = np.meshgrid(self.a[l],d[l])[0]
 
         self.err_b = 0
         self.err_w = 0
-        for i in range(3):
+        for i in range(self.n_hlayers+1):
             self.biases[i] -= self.eta*diff_b[i]
             self.weights[i] -= self.eta*diff_w[i]
 
-            self.err_b += np.sum(diff_b[i])
-            self.err_w += np.sum(diff_w[i])
+            self.err_b = np.sum(diff_b[i])
+            self.err_w = np.sum(diff_w[i])
 
         # The parameter eta is the learning parameter discussed in connection
         # with the gradient descent methods. Here it is convenient to use
@@ -195,6 +212,8 @@ class Neuron:
 
     def produce_outputs(self, simulate=False):
         if simulate:
+            self.X = self.Xt # set testing data
+            self.y = self.yt
             self.feedforward()
         self.acc = fns.assert_binary_accuracy(self.y, self.output)
         print(f"Network produced an accuracy of {100*self.acc:.2f}%")
