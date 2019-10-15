@@ -9,7 +9,8 @@ import numpy as np
 def main():
     sd = int(time.time())
     fn = "defaulted_cc-clients.xls"
-    X, y = fns.read_in_data(fn, shuffle=True, seed = sd, scale=True)
+    X, y = fns.read_in_data(fn, shuffle=True, seed = sd,\
+        scale=False)
     # X, Xt, y, yt = sklearn.model_selection.train_test_split(X, y, \
     #         test_size=0.2, random_state=sd)
     # SKL(X, y, Xt, yt)
@@ -43,11 +44,27 @@ def CGM(X, y, Xt, yt):
     print(f"CGM had accuracy of {100*a:.0f} %")
 
 def neuron(X, y):
-    n1 = nnw.Neuron(X, y)
-    # n1.fb_propogation()
+    train_no = 1000
+    results = np.zeros(train_no)
+    n1 = nnw.Neuron(sklearn.preprocessing.scale(X[0,:]),\
+        y[0], eta=0.01, maxiter=20)
+    # n1.load_data()
+    # n1.feedforward()
+    n1.fb_propogation()
+    results[0] = n1.output
+    for s in range(1,train_no):
+        n1.set_inputs_outputs(X[s,:], y[s])
+        # n1.feedforward()
+        n1.fb_propogation()
+        results[s] = n1.output
+        if str(n1.output) == '[nan]':
+            break
+
+    a = fns.assert_binary_accuracy(y[:s], results[:s])
+    print(f"NNW had accuracy of {100*a:.0f} %")
     # n1.save_data()
-    n1.load_data()
-    n1.produce_outputs(simulate=True)
+    # n1.load_data()
+    # n1.produce_outputs(simulate=True)
 
 
 if __name__ == '__main__':
@@ -66,6 +83,13 @@ y is being scaled.
 GDS had accuracy of 100 %
 -------------------
 Completed in 3.67 seconds.
+"""
+
+"""
+steinn@SHM-PC:~/Desktop/Neural-Networks/FYS-STK4155/Project2$ python3 -W ignore main.py
+NNW had accuracy of 93 %
+-------------------
+Completed in 2.43 seconds.
 """
 
 """
