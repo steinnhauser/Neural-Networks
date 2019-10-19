@@ -21,9 +21,8 @@ class Neuron:
         self.cost_fn_str = cost_fn_str
         self.set_cost_fn()
 
-        self.datasets_sampled = datasets_sampled # how many sets the network has trained on
+        self.datasets_sampled = datasets_sampled # sets the network has been trained on
         self.verbose = verbose      # print unnessecary indications
-
         self.tol_bw = tol_bw        # bias and weight diff tolerance
         self.tol_mse = tol_mse      # mse tolerance
         self.maxiter = maxiter      # max number of f/b propogation iterations
@@ -50,14 +49,11 @@ class Neuron:
         if self.biases_str == "zeros":
             self.biases = np.zeros(self.n_hlayers+1, dtype=np.ndarray)
             for i in range(self.n_hlayers+1):
-                # set a bias from each neuron in layer i to each in layer i+1
                 self.biases[i] = np.zeros(self.nodes[i+1])
         elif self.biases_str == "random":
             self.biases = np.zeros(self.n_hlayers+1, dtype=np.ndarray)
             for i in range(0, self.n_hlayers+1):
-                # set a bias from each neuron in layer i to each in layer i+1
-                self.biases[i] = \
-                    np.random.rand(self.nodes[i+1]) - 0.5
+                self.biases[i] = np.random.rand(self.nodes[i+1]) - 0.5
         elif self.biases_str == "custom":
             pass
         else:
@@ -68,14 +64,11 @@ class Neuron:
         if self.weights_str=="zeros":
             self.weights = np.zeros(self.n_hlayers+1, dtype=np.ndarray)
             for i in range(self.n_hlayers+1):
-                # set a weight from each neuron in layer i to each in layer i+1
                 self.weights[i] = np.zeros((self.nodes[i+1], self.nodes[i]))
         elif self.weights_str == "random":
             self.weights = np.zeros(self.n_hlayers+1, dtype=np.ndarray)
             for i in range(self.n_hlayers+1):
-                # set a weight from each neuron in layer i to each in layer i+1
-                self.weights[i] = \
-                    np.random.rand(self.nodes[i+1],self.nodes[i])-0.5
+                self.weights[i] = np.random.rand(self.nodes[i+1],self.nodes[i])-0.5
                 # this matrix should have dimensions (next layers x prev layers)
         elif self.weights_str == "custom":
             pass
@@ -86,26 +79,33 @@ class Neuron:
         """Set the cost function"""
         if self.cost_fn_str == "MSE":
             self.cost_fn = lambda u: 0.5*(self.y - u)**2
-            self.cost_der = lambda u: \
-                np.vectorize(-(self.y - u)) # derivative of MSE function.
-        # elif self.cost_fn_str == "xentropy":
-        #     self.cost_fn = lambda u:
-        #     self.cost_der = lambda u:
+            self.cost_der = lambda u: np.vectorize(-(self.y - u))
+        elif self.cost_fn_str == "xentropy":
+            self.cost_fn = lambda u: -self.y*np.log(u)
+            self.cost_der = lambda u: u - self.y
+        elif self.cost_fn_str == "softmax":
+            self.cost_fn = lambda u: np.exp(u) / np.sum(np.exp(u))
+            self.cost_der = lambda u: self.cost_fn(u)*(1-self.cost_fn(u))
         else:
-            raise SyntaxError("Cost function must be 'MSE' or 'xentropy'.")
+            raise SyntaxError("Cost function must be 'MSE' or 'xentropy'\
+                or 'softmax'.")
 
     def set_inputs_outputs(self, X, y):
+        """Sets the inputs X and outputs y. Arranges nodes respectively."""
         self.X = X
         self.y = y
+        if len(self.nodes) == self.n_hlayers:
+            self.nodes = [len(X)] + self.nodes + [len(y)] # add input/output
+        elif len(self.nodes) == self.n_hlayers+2:
+            pass
 
     def fb_propogation(self):
         """
         Main program which conducts the forward and backwards
-        propogation through the neural network.
+        propogation through the neural network for training.
         """
 
         self.err_bw = self.tol_bw + 1 # initialize this for the first loop
-
         self.datasets_sampled+=1
 
         i=0
