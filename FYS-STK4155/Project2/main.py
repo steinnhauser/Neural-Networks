@@ -4,68 +4,56 @@ import lib.neural_network as nnw
 import sklearn
 import time
 import numpy as np
+import mpi4py
 
 
 def main():
     sd = int(time.time())
     fn = "defaulted_cc-clients.xls"
-    X, y = fns.read_in_data(fn, shuffle=True, seed = sd,\
-        scale=False)
-    # X, Xt, y, yt = sklearn.model_selection.train_test_split(X, y, \
-    #         test_size=0.2, random_state=sd)
-    # SKL(X, y, Xt, yt)
-    # GDS(X, y, Xt, yt)
-    # CGM(X, y, Xt, yt)
+    Xf, yf = fns.read_in_data(fn, shuffle=True, seed = sd)
+    # ca. 77.88% of the data is zero.
 
-    neuron(X, y)
+    X, Xt, y, yt = sklearn.model_selection.train_test_split(Xf, yf, \
+            test_size=0.5, random_state=sd, stratify=yf)
 
-def SKL(X, y, Xt, yt):
+    dfrac = 3000 # portion of the data which we want to analyse.
+
+    # SKL(X[dfrac:], y[dfrac:], Xt[dfrac:], yt[dfrac:], regress=True)
+    SKL(X[:dfrac], y[:dfrac], Xt[:dfrac], yt[:dfrac])
+    GDS(X[:dfrac], y[:dfrac], Xt[:dfrac], yt[:dfrac])
+    # NNW(X[dfrac:], y[dfrac:], Xt[dfrac:], yt[dfrac:])
+
+def SKL(X, y, Xt, yt, regress=False):
     """Sklearn method"""
     print("-------------------")
-    solution = fns.sklearn_GDRegressor(X, y).coef_
-    yp = Xt @ solution # prediction
-    a = fns.assert_binary_accuracy(yt, yp)
+    if regress:
+        print("Classification chosen")
+        solution = sklearn.linear_model.SGDClassifier(eta0=0.01, \
+            max_iter=100).fit(X,y)
+        yp = solution.predict(X)
+        print(yp)
+    else:
+        print("Regression chosen")
+        solution = fns.sklearn_GDRegressor(X, y,\
+        eta0=0.01, max_iter=100, tol=1e-3).coef_
+        yp = Xt @ solution # prediction
+    a = fns.assert_binary_accuracy(y, yp)
     print(f"SKL had accuracy of {100*a:.0f} %")
 
 def GDS(X, y, Xt, yt):
     """Gradient Descent solver"""
     print("-------------------")
-    solution = lgr.gradient_descent_solver(X, y, x0=100)
-    yp = Xt @ solution # prediction
-    a = fns.assert_binary_accuracy(yt, yp)
-    print(f"GDS had accuracy of {100*a:.0f} %")
+    obj = lgr.GradientDescent()
+    obj.solve(X, y)
+    obj.predict(Xt, yt)
 
-def CGM(X, y, Xt, yt):
-    """Conjugate Gradient method"""
-    print("-------------------")
-    solution = lgr.CGMethod(X, y, random_state_x0=True)
-    yp = Xt @ solution
-    a = fns.assert_binary_accuracy(yt, yp)
-    print(f"CGM had accuracy of {100*a:.0f} %")
-
-def neuron(X, y):
-    train_no = 1000
-    results = np.zeros(train_no)
-    n1 = nnw.Neuron(sklearn.preprocessing.scale(X[0,:]),\
-        y[0], eta=0.01, maxiter=20)
-    # n1.load_data()
-    # n1.feedforward()
-    n1.fb_propogation()
-    results[0] = n1.output
-    for s in range(1,train_no):
-        n1.set_inputs_outputs(X[s,:], y[s])
-        # n1.feedforward()
-        n1.fb_propogation()
-        results[s] = n1.output
-        if str(n1.output) == '[nan]':
-            break
-
-    a = fns.assert_binary_accuracy(y[:s], results[:s])
-    print(f"NNW had accuracy of {100*a:.0f} %")
-    # n1.save_data()
-    # n1.load_data()
-    # n1.produce_outputs(simulate=True)
-
+def NNW(X, y, Xt, yt):
+    n1 = nnw.Neuron(eta=1, maxiter=20, tol_bw=1e-5, act_str="sigmoid",\
+        verbose=True)
+    train_test_no = 100
+    n1.set_inputs_outputs(X, y)
+    n1.train_neuron(X, y, train_no=train_test_no)
+    n1.test_neuron(Xt, yt, test_no=train_test_no, load_data=False)
 
 if __name__ == '__main__':
     start = time.time()
