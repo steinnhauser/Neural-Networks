@@ -16,13 +16,14 @@ def main():
     X, Xt, y, yt = sklearn.model_selection.train_test_split(Xf, yf, \
             test_size=0.5, random_state=sd, stratify=yf)
 
-    dfrac = 100 # portion of the data to analyse. must be between 1-30000
+    dfrac = 1000 # portion of the data to analyse. must be between 1-30000
+    X, y, Xt, yt = X[:dfrac], y[:dfrac], Xt[:dfrac], yt[:dfrac]
 
-    # SKL(X[:dfrac], y[:dfrac], Xt[:dfrac], yt[:dfrac])
-    # GDS(X[:dfrac], y[:dfrac], Xt[:dfrac], yt[:dfrac])
+    # SKL(X, y, Xt, yt)
+    # GDS(X, y, Xt, yt)
 
-    # TFL(X[:dfrac], y[:dfrac], Xt[:dfrac], yt[:dfrac])
-    NNW(X[dfrac:], y[dfrac:], Xt[dfrac:], yt[dfrac:])
+    # TFL(X, y, Xt, yt)
+    NNW(X, y, Xt, yt)
 
 def SKL(X, y, Xt, yt, regress=False):
     """Sklearn method"""
@@ -52,12 +53,12 @@ def TFL(X, y, Xt, yt):
     fns.tensorflow_NNWsolver(X, y, Xt, yt)
 
 def NNW(X, y, Xt, yt):
-    n1 = nnw.Neuron(eta=1, maxiter=20, tol_bw=1e-3, act_str="sigmoid",\
-        verbose=True, cost_fn_str="softmax")
-    train_test_no = 1000
-    n1.set_inputs_outputs(X, y)
-    n1.train_neuron(X, y, train_no=train_test_no)
-    n1.test_neuron(Xt, yt, test_no=train_test_no, load_data=False)
+    n1 = nnw.Neuron(eta=1, maxiter=100, tol_bw=1e-3, act_str="sigmoid",\
+        verbose=True, cost_fn_str="xentropy")
+    train_no, test_no = 200, 20
+    # n1.set_inputs_outputs(X, y)
+    # n1.train_neuron(X, y, train_no=train_no)
+    n1.test_neuron(Xt, yt, test_no=test_no, load_data=True)
 
 if __name__ == '__main__':
     start = time.time()
