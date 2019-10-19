@@ -16,12 +16,13 @@ def main():
     X, Xt, y, yt = sklearn.model_selection.train_test_split(Xf, yf, \
             test_size=0.5, random_state=sd, stratify=yf)
 
-    dfrac = 3000 # portion of the data which we want to analyse.
+    dfrac = 100 # portion of the data to analyse. must be between 1-30000
 
-    # SKL(X[dfrac:], y[dfrac:], Xt[dfrac:], yt[dfrac:], regress=True)
-    SKL(X[:dfrac], y[:dfrac], Xt[:dfrac], yt[:dfrac])
-    GDS(X[:dfrac], y[:dfrac], Xt[:dfrac], yt[:dfrac])
-    # NNW(X[dfrac:], y[dfrac:], Xt[dfrac:], yt[dfrac:])
+    # SKL(X[:dfrac], y[:dfrac], Xt[:dfrac], yt[:dfrac])
+    # GDS(X[:dfrac], y[:dfrac], Xt[:dfrac], yt[:dfrac])
+
+    # TFL(X[:dfrac], y[:dfrac], Xt[:dfrac], yt[:dfrac])
+    NNW(X[dfrac:], y[dfrac:], Xt[dfrac:], yt[dfrac:])
 
 def SKL(X, y, Xt, yt, regress=False):
     """Sklearn method"""
@@ -47,10 +48,13 @@ def GDS(X, y, Xt, yt):
     obj.solve(X, y)
     obj.predict(Xt, yt)
 
+def TFL(X, y, Xt, yt):
+    fns.tensorflow_NNWsolver(X, y, Xt, yt)
+
 def NNW(X, y, Xt, yt):
-    n1 = nnw.Neuron(eta=1, maxiter=20, tol_bw=1e-5, act_str="sigmoid",\
-        verbose=True)
-    train_test_no = 100
+    n1 = nnw.Neuron(eta=1, maxiter=20, tol_bw=1e-3, act_str="sigmoid",\
+        verbose=True, cost_fn_str="softmax")
+    train_test_no = 1000
     n1.set_inputs_outputs(X, y)
     n1.train_neuron(X, y, train_no=train_test_no)
     n1.test_neuron(Xt, yt, test_no=train_test_no, load_data=False)
