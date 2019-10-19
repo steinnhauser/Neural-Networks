@@ -81,7 +81,7 @@ def shuffle_Xy(X, y, seed):
     X, X_sparse, y = sklearn.utils.shuffle(X, X_sparse, y, random_state=seed)
     return X, y
 
-def sklearn_GDRegressor(X, y, intercept=False):
+def sklearn_GDRegressor(X, y, intercept=False, eta0=0.01, max_iter=50, tol=1e-3):
     """
     Uses scikit-learn's Gradient descent method
     to calculate a minimum of a cost function (MSE by default).
@@ -101,7 +101,8 @@ def sklearn_GDRegressor(X, y, intercept=False):
         Classifier for data X and y, where clf.coef_ = 'beta'
     """
     clf = sklearn.linear_model.SGDRegressor(penalty='none',learning_rate=\
-        'constant', eta0=0.01, max_iter=50, fit_intercept=intercept)
+        'constant', eta0=eta0, max_iter=max_iter, fit_intercept=intercept,\
+        tol=tol)
     clf.fit(X,y)
     return clf
 
@@ -135,7 +136,7 @@ def assert_binary_accuracy(y, u, unscaled=True):
                 count+=1
         acc = count/len(y)
         return acc
-        
+
     else:
         count = 0
         for i in range(len(y)):
