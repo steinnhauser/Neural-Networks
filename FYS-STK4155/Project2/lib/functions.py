@@ -1,6 +1,7 @@
 import pandas as pd
 import scipy
 import sklearn
+import tensorflow as tf
 import numpy as np
 from sklearn.linear_model import SGDRegressor
 
@@ -105,6 +106,27 @@ def sklearn_GDRegressor(X, y, intercept=False, eta0=0.01, max_iter=50, tol=1e-3)
         tol=tol)
     clf.fit(X,y)
     return clf
+
+def tensorflow_NNWsolver(X, y, Xt, yt, nodes=[24, 18, 12, 6, 1],\
+    act_fn_str = "sigmoid"):
+    model = tf.keras.models.Sequential(
+        [
+            tf.keras.layers.Dense(i, activation = act_fn_str) for i in nodes
+        ]
+    )
+    model.compile(
+        optimizer = 'adam',
+        loss = 'categorical_crossentropy',
+        metrics = ['accuracy']
+    )
+    model.fit(
+        X, y,
+        epochs = 1,
+        batch_size = 1,
+        validation_data = (Xt, yt)
+    )
+
+    pred = model.predict(Xt)
 
 def assert_binary_accuracy(y, u, unscaled=True):
     """
