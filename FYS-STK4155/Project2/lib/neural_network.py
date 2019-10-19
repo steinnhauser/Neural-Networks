@@ -30,15 +30,16 @@ class Neuron:
     def set_activation(self):
         """Set the activation function of the network."""
         if self.act_str == "sigmoid":
-            self.act_fn = np.vectorize(lambda z: 1./(1+np.exp(-z)))
+            self.act_fn = \
+                np.vectorize(lambda z: 1./(1+np.exp(-z)))
             self.act_der = \
                 np.vectorize(lambda z: self.act_fn(z)*(1-self.act_fn(z)))
         elif self.act_str == "tanh":
-            self.act_fn = np.vectorize(lambda z: np.tanh(z))
-            self.act_der = np.vectorize(lambda z: 1 - np.tanh(z)**2)
+            self.act_fn =   np.vectorize(lambda z: np.tanh(z))
+            self.act_der =  np.vectorize(lambda z: 1 - np.tanh(z)**2)
         elif self.act_str == "relu":
-            self.act_fn = np.vectorize(lambda z: 0 if z<0. else z)
-            self.act_der = np.vectorize(lambda z: 0 if z<0. else 1)
+            self.act_fn =   np.vectorize(lambda z: 0 if z<0. else z)
+            self.act_der =  np.vectorize(lambda z: 0 if z<0. else 1)
         else:
             raise \
             SyntaxError("Activation function must be 'sigmoid'\
@@ -68,7 +69,8 @@ class Neuron:
         elif self.weights_str == "random":
             self.weights = np.zeros(self.n_hlayers+1, dtype=np.ndarray)
             for i in range(self.n_hlayers+1):
-                self.weights[i] = np.random.rand(self.nodes[i+1],self.nodes[i])-0.5
+                self.weights[i] =\
+                    np.random.rand(self.nodes[i+1],self.nodes[i])-0.5
                 # this matrix should have dimensions (next layers x prev layers)
         elif self.weights_str == "custom":
             pass
@@ -113,13 +115,13 @@ class Neuron:
             self.feedforward()
             self.backpropogate()
             i+=1
-
+        self.output_func()
         if self.verbose:
-            print(f"Output:\t{self.output_func()}\tTrue:\t{self.y}")
-            if self.err_bw <= self.tol_bw:
-                print("Weight and bias difference tolerance reached.")
-            else:
-                print("Max iteration reached.")
+            print(f"Output:\t{self.output}\tTrue:\t{self.y}")
+            # if self.err_bw <= self.tol_bw:
+            #     print("Weight and bias difference tolerance reached.")
+            # else:
+            #     print("Max iteration reached.")
 
     def feedforward(self):
         # Initialize the input 'z' matrix:
@@ -141,7 +143,6 @@ class Neuron:
         # Initialize error vector delta (one for each layer except input)
         d = np.zeros(self.n_hlayers+1, dtype=np.ndarray)
         for i in range(self.n_hlayers+1):
-            # have difference array for each layer:
             d[i] = np.zeros(self.nodes[i+1])
 
         # set up arrays for the differences of bias and weights:
@@ -155,13 +156,13 @@ class Neuron:
 
         # first elements of the difference arrays:
         diff_b[-1] = d[-1]
-        diff_w[-1] = np.outer(d[-1], self.a[-2])    # a[] 'previous layer'
+        diff_w[-1] = np.outer(d[-1], self.a[-2])
 
         for l in range(self.n_hlayers-1, -1, -1):
             d[l] = np.multiply((self.weights[l+1].T @ d[l+1]),\
                 self.act_der(self.z[l]))
             diff_b[l] = d[l]
-            diff_w[l] = np.outer(d[l], self.a[l-1])   # a[] 'previous layer'
+            diff_w[l] = np.outer(d[l], self.a[l-1])
 
         self.err_bw = 0
         for i in range(self.n_hlayers+1):
@@ -177,18 +178,17 @@ class Neuron:
 
     def output_func(self):
         iter = self.act_fn(self.weights[0] @ self.X + self.biases[0])
+        # iter = self.weights[0] @ self.X + self.biases[0]
         for l in range(1, self.n_hlayers+1):
             iter = self.act_fn(self.weights[l] @ iter + self.biases[l])
-        return iter
+            # iter = self.weights[l] @ iter + self.biases[l]
+        # iter = self.weights[self.n_hlayers] @ iter + self.biases[self.n_hlayers]
+        self.output=iter
 
-    def train_neuron(self, X, y, train_no=100, Xscale=True):
+    def train_neuron(self, X, y, train_no=100):
         done = 0
         for s in range(train_no):
-            if Xscale==True:
-                Xd = sklearn.preprocessing.scale(X[s,:])
-            else:
-                Xd = X[s,:]
-            self.set_inputs_outputs(Xd, y[s])
+            self.set_inputs_outputs(X[s,:], y[s])
             self.fb_propogation()
             if str(self.output) == '[nan]':
                 print("Something went wrong. Output is 'nan'...")
@@ -200,19 +200,22 @@ class Neuron:
         print("Network Trained.")
         self.save_data()
 
-    def test_neuron(self, X, y, test_no = 100, load_data=True, Xscale=True):
+    def test_neuron(self, X, y, test_no = 100, load_data=False):
+        if self.verbose:
+            print("-------------")
+            print("Testing:")
         if load_data:
             self.load_data()
         correct = 0
         for s in range(test_no):
-            if Xscale==True:
-                Xd = sklearn.preprocessing.scale(X[s,:])
-            else:
-                Xd = X[s,:]
-            self.set_inputs_outputs(Xd, y[s])
-            self.feedforward()  # feed the network forward once using W and b.
-            if (self.output>0.5 and y[s]==1) or (self.output<0.5 and y[s]==0):
+            self.set_inputs_outputs(X[s,:], y[s])
+            # self.feedforward()  # feed the network forward once using W and b.
+            self.output_func() # produce prediction
+            if (self.output>0.5 and self.y==1) \
+                or (self.output<0.5 and self.y==0):
                 correct += 1
+            if self.verbose:
+                print(f"Output:\t{self.output}\tTrue:\t{self.y}")
         print(f"Network had an accuracy of {correct/test_no*100:.2f} %")
 
 
@@ -250,7 +253,8 @@ class Neuron:
         for i in range(test_sample):
             self.X = X[i,:]
             self.feedforward()
-            results[i] = self.output
+            output = self.output_func()
+            results[i] = output
 
         # results = (np.random.random(test_sample))*0.7/0.5 # test this as results.
         self.acc = fns.assert_binary_accuracy(y[:test_sample], results)
