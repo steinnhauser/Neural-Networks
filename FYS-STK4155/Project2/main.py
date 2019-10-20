@@ -23,7 +23,7 @@ def main():
     # GDS(X, y, Xt, yt)
 
     # TFL(X, y, Xt, yt)
-    NNW(X, y, Xt, yt)
+    # NNW(X, y, Xt, yt)
 
 def SKL(X, y, Xt, yt, regress=False):
     """Sklearn method"""
@@ -53,11 +53,17 @@ def TFL(X, y, Xt, yt):
     fns.tensorflow_NNWsolver(X, y, Xt, yt)
 
 def NNW(X, y, Xt, yt):
-    n1 = nnw.Neuron(eta=1, maxiter=100, tol_bw=1e-3, act_str="sigmoid",\
+    n1 = nnw.Neuron(eta=1, maxiter=100, tol_bw=1e-3,
         verbose=True, cost_fn_str="xentropy")
+
+    n1.add_hlayer(18, activation='relu')
+    n1.add_hlayer(12, activation='relu')
+    n1.add_hlayer(6, activation='relu')
+    n1.set_inputs_outputs(X[0,:], y[0], activation='sigmoid')
+    n1.set_biases(); n1.set_weights(); n1.set_cost_fn()
+
     train_no, test_no = 200, 20
-    # n1.set_inputs_outputs(X, y)
-    # n1.train_neuron(X, y, train_no=train_no)
+    n1.train_neuron(X, y, train_no=train_no)
     n1.test_neuron(Xt, yt, test_no=test_no, load_data=True)
 
 if __name__ == '__main__':
@@ -65,25 +71,6 @@ if __name__ == '__main__':
     main()
     print("-------------------")
     print(f"Completed in {time.time() - start:.2f} seconds.")
-
-"""
-steinn@SHM-PC:~/Desktop/Neural-Networks/FYS-STK4155/Project2$ python3 -W ignore main.py
--------------------
-SKL had accuracy of 99 %
--------------------
-GD reached tolerance.
-y is being scaled.
-GDS had accuracy of 100 %
--------------------
-Completed in 3.67 seconds.
-"""
-
-"""
-steinn@SHM-PC:~/Desktop/Neural-Networks/FYS-STK4155/Project2$ python3 -W ignore main.py
-NNW had accuracy of 93 %
--------------------
-Completed in 2.43 seconds.
-"""
 
 """
 Neural network slides:
