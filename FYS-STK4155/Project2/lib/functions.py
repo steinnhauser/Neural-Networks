@@ -4,6 +4,8 @@ import sklearn
 import tensorflow as tf
 import numpy as np
 from sklearn.linear_model import SGDRegressor
+from imblearn.over_sampling import RandomOverSampler
+from imblearn.under_sampling import RandomUnderSampler
 
 
 def read_in_data(fn, headers=False, shuffle=False, seed=0, scale=True):
@@ -49,7 +51,7 @@ def read_in_data(fn, headers=False, shuffle=False, seed=0, scale=True):
         X, y = shuffle_Xy(X, y, seed)
 
     if scale:
-        X = sklearn.preprocessing.scale(X)
+        X = scale_data(X)
 
     if headers:
         headers = df.values[0,1:-2] # headers of X-columns in the same order.
@@ -82,7 +84,38 @@ def shuffle_Xy(X, y, seed):
     X, X_sparse, y = sklearn.utils.shuffle(X, X_sparse, y, random_state=seed)
     return X, y
 
-def sklearn_GDRegressor(X, y, intercept=False, eta0=0.01, max_iter=50, tol=1e-3):
+def scale_data(X):
+    """Function to scale the columns of X. Columns which require scaling:
+        1: LIMIT_B
+        5: AGE
+        12-23: BILLS.
+    The other data is not necessary to scale."""
+
+    a = np.array([0, 4, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22])
+    # a = range(23)
+
+    for i in a:
+        pass
+        # scaler = sklearn.preprocessing.MinMaxScaler()
+        # X[i,:] = scaler.fit(X[i,:])
+        # X[i,:] = X[i,:]/np.std(X[i,:])
+    # scaler = MinMaxScaler(feature_range=(0,1))
+    X = sklearn.preprocessing.scale(X)
+    return X
+
+def upsample(X, y, seed):
+    """Function which generates copies of the minority class"""
+    ros = RandomOverSampler(random_state=seed)
+    X_resampled, y_resampled = ros.fit_resample(X, y)
+    return X_resampled, y_resampled
+
+def downsample(X, y, seed):
+    """Function which removes samples of the majority class"""
+    rus = RandomUnderSampler(random_state=seed)
+    X_resampled, y_resampled = rus.fit_resample(X, y)
+    return X_resampled, y_resampled
+
+def sklearn_GDRegressor(X, y, intercept=False, eta0=0.1, max_iter=50, tol=1e-3):
     """
     Uses scikit-learn's Gradient descent method
     to calculate a minimum of a cost function (MSE by default).
@@ -107,11 +140,16 @@ def sklearn_GDRegressor(X, y, intercept=False, eta0=0.01, max_iter=50, tol=1e-3)
     clf.fit(X,y)
     return clf
 
-def tensorflow_NNWsolver(X, y, Xt, yt, nodes=[24, 18, 12, 6, 1],\
-    act_fn_str = "sigmoid"):
+def tensorflow_NNWsolver(X, y, Xt, yt):
     model = tf.keras.models.Sequential(
         [
-            tf.keras.layers.Dense(i, activation = act_fn_str) for i in nodes
+            tf.keras.layers.Dense(24, activation = 'sigmoid'),
+            tf.keras.layers.Dense(20, activation = 'relu'),
+            tf.keras.layers.Dense(16, activation = 'relu'),
+            tf.keras.layers.Dense(12, activation = 'relu'),
+            tf.keras.layers.Dense(8, activation = 'relu'),
+            tf.keras.layers.Dense(4, activation = 'relu'),
+            tf.keras.layers.Dense(1, activation = 'sigmoid')
         ]
     )
     model.compile(
@@ -121,12 +159,13 @@ def tensorflow_NNWsolver(X, y, Xt, yt, nodes=[24, 18, 12, 6, 1],\
     )
     model.fit(
         X, y,
-        epochs = 1,
-        batch_size = 1,
+        epochs = 10,
+        batch_size = 100,
         validation_data = (Xt, yt)
     )
 
     pred = model.predict(Xt)
+    return pred
 
 def assert_binary_accuracy(y, u, unscaled=True):
     """
@@ -154,6 +193,7 @@ def assert_binary_accuracy(y, u, unscaled=True):
 
         count = 0
         for i in range(len(y)):
+            print(f"Output: {u[i]}, True: {y[i]}")
             if y[i]==u[i]:
                 count+=1
         acc = count/len(y)
@@ -166,7 +206,6 @@ def assert_binary_accuracy(y, u, unscaled=True):
                 count+=1
         acc = count/len(y)
         return acc
-
 
 if __name__ == '__main__':
     X, y = read_in_data("defaulted_cc-clients.xls")
