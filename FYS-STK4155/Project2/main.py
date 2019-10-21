@@ -10,19 +10,23 @@ import mpi4py
 def main():
     sd = int(time.time())
     fn = "defaulted_cc-clients.xls"
-    Xf, yf = fns.read_in_data(fn, shuffle=True, seed = sd)
-    # ca. 77.88% of the data is zero.
+    Xf, yf, headers = \
+        fns.read_in_data(fn, shuffle=True, seed = sd, headers=True)
+
+    # ca. 77.88% of the data is zero. Requires resampling
+    # Xf, yf = fns.upsample(Xf, yf, sd)
+    Xf, yf = fns.downsample(Xf, yf, sd)
 
     X, Xt, y, yt = sklearn.model_selection.train_test_split(Xf, yf, \
-            test_size=0.5, random_state=sd, stratify=yf)
+            test_size=0.5, random_state=sd) # stratify=yf
 
-    dfrac = 1000 # portion of the data to analyse. must be between 1-30000
+    dfrac = 10000 # portion of the data to analyse. must be between 1-30000
     X, y, Xt, yt = X[:dfrac], y[:dfrac], Xt[:dfrac], yt[:dfrac]
 
     # SKL(X, y, Xt, yt)
     # GDS(X, y, Xt, yt)
 
-    # TFL(X, y, Xt, yt)
+    TFL(X, y, Xt, yt)
     # NNW(X, y, Xt, yt)
 
 def SKL(X, y, Xt, yt, regress=False):
@@ -50,7 +54,11 @@ def GDS(X, y, Xt, yt):
     obj.predict(Xt, yt)
 
 def TFL(X, y, Xt, yt):
-    fns.tensorflow_NNWsolver(X, y, Xt, yt)
+    print("-------------------")
+    yp = fns.tensorflow_NNWsolver(X, y, Xt, yt)
+    print(yp)
+    a = fns.assert_binary_accuracy(yt, yp)
+    print(f"TFL had accuracy of {100*a:.0f} %")
 
 def NNW(X, y, Xt, yt):
     n1 = nnw.Neuron(eta=1, maxiter=100, tol_bw=1e-3,
