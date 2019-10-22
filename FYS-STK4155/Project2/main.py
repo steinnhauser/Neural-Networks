@@ -10,24 +10,23 @@ import mpi4py
 def main():
     sd = int(time.time())
     fn = "defaulted_cc-clients.xls"
-    Xf, yf, headers = \
-        fns.read_in_data(fn, shuffle=True, seed = sd, headers=True)
+    Xf, yf= \
+        fns.read_in_data(fn, shuffle=True, seed = sd)
 
     # ca. 77.88% of the data is zero. Requires resampling
-    # Xf, yf = fns.upsample(Xf, yf, sd)
-    Xf, yf = fns.downsample(Xf, yf, sd)
+    Xf, yf = fns.upsample(Xf, yf, sd)
+    # Xf, yf = fns.downsample(Xf, yf, sd)
 
     X, Xt, y, yt = sklearn.model_selection.train_test_split(Xf, yf, \
-            test_size=0.5, random_state=sd) # stratify=yf
+            test_size=0.5, random_state=sd)
 
-    dfrac = 10000 # portion of the data to analyse. must be between 1-30000
+    dfrac = -1 # portion of the data to analyse. must be between 1-30000
     X, y, Xt, yt = X[:dfrac], y[:dfrac], Xt[:dfrac], yt[:dfrac]
-
     # SKL(X, y, Xt, yt)
     # GDS(X, y, Xt, yt)
+    # TFL(X, y, Xt, yt)
+    NNW(X, y, Xt, yt)
 
-    TFL(X, y, Xt, yt)
-    # NNW(X, y, Xt, yt)
 
 def SKL(X, y, Xt, yt, regress=False):
     """Sklearn method"""
@@ -61,16 +60,17 @@ def TFL(X, y, Xt, yt):
     print(f"TFL had accuracy of {100*a:.0f} %")
 
 def NNW(X, y, Xt, yt):
-    n1 = nnw.Neuron(eta=1, maxiter=100, tol_bw=1e-3,
-        verbose=True, cost_fn_str="xentropy")
+    n1 = nnw.Neuron(eta=0.1, maxiter=1, tol_bw=1e-3,\
+        cost_fn_str="xentropy", batchsize=5)
 
-    n1.add_hlayer(18, activation='relu')
-    n1.add_hlayer(12, activation='relu')
-    n1.add_hlayer(6, activation='relu')
-    n1.set_inputs_outputs(X[0,:], y[0], activation='sigmoid')
-    n1.set_biases(); n1.set_weights(); n1.set_cost_fn()
+    n1.add_hlayer(18, activation='tanh')
+    n1.add_hlayer(12, activation='tanh')
+    n1.add_hlayer(6, activation='tanh')
+    n1.set_outputs(y[0], activation='sigmoid')
+    n1.set_inputs(X[0,:], init=True)
+    n1.set_biases(); n1.set_weights(); n1.set_cost_fn() # require in/outputs
 
-    train_no, test_no = 200, 20
+    train_no, test_no = 1000, 1000
     n1.train_neuron(X, y, train_no=train_no)
     n1.test_neuron(Xt, yt, test_no=test_no, load_data=True)
 
