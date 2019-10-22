@@ -7,8 +7,11 @@ from sklearn.linear_model import SGDRegressor
 from imblearn.over_sampling import RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler
 
+# column transformer for one hot useage
+# scikit learn one hot
 
-def read_in_data(fn, headers=False, shuffle=False, seed=0, scale=True):
+def read_in_data(fn, headers=False, shuffle=False, seed=0, scale=True,\
+            remove_outliers=True):
     """
     Reads in xls files using pandas and sorts dataframes.
 
@@ -42,16 +45,36 @@ def read_in_data(fn, headers=False, shuffle=False, seed=0, scale=True):
         filename = fn
 
     df = pd.read_excel(filename) # shape (30001, 25)
-    # first column is indices, last column is whether they default or not (0/1)
-    # first row is headers classifying the X matrix.
-    X = np.array((df.values[1:,1:]), dtype=int)
-    y = np.array(df.values[1:,-1], dtype=int)
+    dfs = np.split(df, [1,24], axis=1)
+    X = dfs[1].values[1:]
+    y = dfs[2].values[1:]
 
-    if shuffle:
-        X, y = shuffle_Xy(X, y, seed)
+    if remove_outliers:
+        """remove categorical outliers"""
+        # X2: Gender (1 = male; 2 = female).
+        valid_mask = np.logical_and(X[:,1] >= 1, X[:,1] <= 2)
+        y = y[valid_mask]
+        X = X[valid_mask]
+
+        # X3: Education (1 = graduate school; 2 = university;\
+        #   3 = high school; 4 = others).
+        valid_mask = np.logical_and(X[:,2] >= 1, X[:,2] <= 4)
+        y = y[valid_mask]
+        X = X[valid_mask]
+
+        # X4: Marital status (1 = married; 2 = single; 3 = others)
+        valid_mask = np.logical_and(X[:,3] >= 1, X[:,3] <= 3)
+        y = y[valid_mask]
+        X = X[valid_mask]
 
     if scale:
         X = scale_data(X)
+
+    X = X.astype(float)
+    y = y.astype(float)
+
+    if shuffle:
+        X, y = shuffle_Xy(X, y, seed)
 
     if headers:
         headers = df.values[0,1:-2] # headers of X-columns in the same order.
@@ -85,22 +108,47 @@ def shuffle_Xy(X, y, seed):
     return X, y
 
 def scale_data(X):
-    """Function to scale the columns of X. Columns which require scaling:
-        1: LIMIT_B
-        5: AGE
-        12-23: BILLS.
-    The other data is not necessary to scale."""
+    """
+    Function to scale the columns of X.
+    Columns which have large datapoints:
+        X1: LIMIT_B
+        X5: AGE
+        X12-X23: BILLS.
+    Columns which require one-hot encoders:
+        X2: SEX (1 or 2)
+        X3: EDUCATION (1, 2, 3 or 4)
+        X4: MARRIAGE (1, 2 or 3)
+    Other:
+        X6 - X11: values -2 to 9.
+            1-9 are months later.
+            0   is 'customer payed minimum due amount but not entire balance'
+            -1  is 'Balance payed in full, but account has a positive Balance
+                    at the end of period.'
+            -2  is 'Balance payed in full and no transactions in this period'
+                    (inactive)
+    The other data is not necessary to scale.
+    """
 
-    a = np.array([0, 4, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22])
-    # a = range(23)
-
+    # Scale large data values by indices
+    a = [0, 4, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
     for i in a:
-        pass
-        # scaler = sklearn.preprocessing.MinMaxScaler()
-        # X[i,:] = scaler.fit(X[i,:])
-        # X[i,:] = X[i,:]/np.std(X[i,:])
-    # scaler = MinMaxScaler(feature_range=(0,1))
-    X = sklearn.preprocessing.scale(X)
+        X[:,i] = X[:,i] - X[:,i].min()
+        X[:,i] = X[:,i] / X[:,i].max()
+
+    # One-hot encoding values by indices
+    b = [1, 2, 3]
+    b_elem = [1, 3, 2] # no. of (additional) features from one-hot
+    extra = 0 # counts the extra indices needed after additions
+
+    for j in range(3):
+        i=b[j]+extra
+        series = pd.Series(X[:,i])
+        dummies = pd.get_dummies(series).values # one hot encoded
+        # add array into place 'i' (sandwitch dummies between arrays)
+        X = np.append(np.append(X[:,:i], dummies, axis=1), X[:,i+1:], axis=1)
+        # adding columns changes the 'i' indices we need.
+        extra += b_elem[j]
+
     return X
 
 def upsample(X, y, seed):
@@ -143,15 +191,14 @@ def sklearn_GDRegressor(X, y, intercept=False, eta0=0.1, max_iter=50, tol=1e-3):
 def tensorflow_NNWsolver(X, y, Xt, yt):
     model = tf.keras.models.Sequential(
         [
-            tf.keras.layers.Dense(24, activation = 'sigmoid'),
-            tf.keras.layers.Dense(20, activation = 'relu'),
-            tf.keras.layers.Dense(16, activation = 'relu'),
-            tf.keras.layers.Dense(12, activation = 'relu'),
-            tf.keras.layers.Dense(8, activation = 'relu'),
-            tf.keras.layers.Dense(4, activation = 'relu'),
+            tf.keras.layers.Dense(24, activation='tanh'),
+            tf.keras.layers.Dense(16, activation='tanh'),
+            tf.keras.layers.Dense(8, activation='tanh'),
+            tf.keras.layers.Dense(4, activation='tanh'),
             tf.keras.layers.Dense(1, activation = 'sigmoid')
+            # tf.keras.layers.Dropout(0.2),
         ]
-    )
+    ) # try two outputs and softmax (well taylored for )
     model.compile(
         optimizer = 'adam',
         loss = 'categorical_crossentropy',
@@ -159,8 +206,8 @@ def tensorflow_NNWsolver(X, y, Xt, yt):
     )
     model.fit(
         X, y,
-        epochs = 10,
-        batch_size = 100,
+        epochs = 30,
+        batch_size =100,
         validation_data = (Xt, yt)
     )
 
