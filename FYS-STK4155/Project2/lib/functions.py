@@ -8,13 +8,10 @@ from imblearn.over_sampling import RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler
 import os
 
-# column transformer for one hot useage
-# scikit learn one hot
-
 
 def read_in_data(
-    fn, headers=False, shuffle=False, seed=0, scale=True, remove_outliers=True
-):
+    fn, headers=False, shuffle=False, seed=0, scale=True, remove_outliers=True,
+        save_processed_data=True):
     """
     Reads in xls files using pandas and sorts dataframes.
 
@@ -42,31 +39,18 @@ def read_in_data(
         (1 x p) list of headers
     """
 
-    filename = os.path.join("./data", fn)
+    if __name__ == "__main__":
+        filename = os.path.join("../data/", fn)
+    else:
+        filename = os.path.join("./data", fn)
 
-    df = pd.read_excel(filename)  # shape (30001, 25)
-    dfs = np.split(df, [1, 24], axis=1)
+    df = pd.read_excel(filename)        # shape (30001, 25)
+    dfs = np.split(df, [1, 24], axis=1) # split dataframe
     X = dfs[1].values[1:]
     y = dfs[2].values[1:]
 
     if remove_outliers:
-        """remove categorical outliers"""
-        # X2: Gender (1 = male; 2 = female).
-        valid_mask = np.logical_and(X[:, 1] >= 1, X[:, 1] <= 2)
-        y = y[valid_mask]
-        X = X[valid_mask]
-
-        # X3: Education (1 = graduate school; 2 = university;\
-        #   3 = high school; 4 = others).
-        valid_mask = np.logical_and(X[:, 2] >= 1, X[:, 2] <= 4)
-        y = y[valid_mask]
-        X = X[valid_mask]
-
-        # X4: Marital status (1 = married; 2 = single; 3 = others)
-        valid_mask = np.logical_and(X[:, 3] >= 1, X[:, 3] <= 3)
-        y = y[valid_mask]
-        X = X[valid_mask]
-
+        X, y = remove_categorical_outliers(X,y)
     if scale:
         X = scale_data(X)
 
@@ -76,12 +60,80 @@ def read_in_data(
     if shuffle:
         X, y = shuffle_Xy(X, y, seed)
 
+    if save_processed_data:
+        save_features_predictors(X,y)
+
     if headers:
         headers = df.values[0, 1:-2]  # headers of X-columns in the same order.
-        return X, y, headers
-    else:
-        return X, y
 
+def remove_categorical_outliers(X,y):
+    """remove categorical outliers from the X and y data"""
+    # X2: Gender (1 = male; 2 = female).
+    valid_mask = np.logical_and(X[:, 1] >= 1, X[:, 1] <= 2)
+    y = y[valid_mask]
+    X = X[valid_mask]
+
+    # X3: Education (1 = graduate school; 2 = university;\
+    #   3 = high school; 4 = others).
+    valid_mask = np.logical_and(X[:, 2] >= 1, X[:, 2] <= 4)
+    y = y[valid_mask]
+    X = X[valid_mask]
+
+    # X4: Marital status (1 = married; 2 = single; 3 = others)
+    valid_mask = np.logical_and(X[:, 3] >= 1, X[:, 3] <= 3)
+    y = y[valid_mask]
+    X = X[valid_mask]
+
+    # X6 - X11: History of past payment
+    #   All take inputs from -2 to 9.
+    for i in range(5, 11):
+        valid_mask = np.logical_and(X[:, i] >= -2, X[:, i] <= 9)
+        y = y[valid_mask]
+        X = X[valid_mask]
+    # there are no elements of size 9. There are 25 cases of 8.
+
+    return X, y
+
+def save_features_predictors(X,y):
+    """Save the data as a CSV file in the ./data/ directory"""
+    pwd = "./data/"
+    if __name__ == "__main__":
+        pwd = "." + pwd
+    else:
+        pass
+
+    fn1 = os.path.join(pwd, "features.npy")
+    fn2 = os.path.join(pwd, "predictors.npy")
+    exists1 = os.path.isfile(fn1)
+    exists2 = os.path.isfile(fn2)
+    if exists1 and exists2:
+        inp = input("Would you like to overwrite previous data?(y/n)")
+        if str(inp) == "y" or str(inp) == "Y":
+            np.save(fn1, X)
+            np.save(fn2, y)
+            print(f"Features X and outcomes y overwritten in files {fn1}" +
+             f" and {fn2}.")
+        else:
+            print("Data not overwritten.")
+    else:
+        np.save(fn1, X)
+        np.save(fn2, y)
+        print(f"Features X and outcomes y saved in files {fn1} and {fn2}.")
+
+def load_features_predictors():
+    """Loads the data files of X and y from the ./data/ directory"""
+    pwd = "./data/"
+    if __name__ == "__main__":
+        pwd = "." + pwd
+    else:
+        pass
+
+    fn1 = os.path.join(pwd, "features.npy")
+    fn2 = os.path.join(pwd, "predictors.npy")
+
+    X = np.load(fn1)
+    y = np.load(fn2)
+    return X, y
 
 def shuffle_Xy(X, y, seed):
     """
@@ -108,7 +160,6 @@ def shuffle_Xy(X, y, seed):
     X, X_sparse, y = sklearn.utils.shuffle(X, X_sparse, y, random_state=seed)
     return X, y
 
-
 def scale_data(X):
     """
     Function to scale the columns of X.
@@ -128,31 +179,80 @@ def scale_data(X):
                     at the end of period.'
             -2  is 'Balance payed in full and no transactions in this period'
                     (inactive)
+
     The other data is not necessary to scale.
     """
 
-    # Scale large data values by indices
+
+
+    """CASES X1, X5, X12-X23: Scale large data values by indices. How these
+    should be scaled is up for debate though the typical is between 0-1."""
     a = [0, 4, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
     for i in a:
         X[:, i] = X[:, i] - X[:, i].min()
         X[:, i] = X[:, i] / X[:, i].max()
 
-    # One-hot encoding values by indices
+    """CASES X6-X11: Separate categorical and continuous data. Do this first
+    to avoid changing the indices for the categories lower down."""
+    c = [5, 6, 7, 8, 9, 10]
+
+    newmtxs = np.zeros(6, dtype = np.ndarray)
+    i=0
+    X = pd.DataFrame(X)
+    for j in c:
+        # 'manual' one-hot encoding
+        row1 = X[j]
+        row1 = row1.apply(lambda x: 1 if x==-2. else 0)
+        vec1 = row1.values
+        row2 = X[j]
+        row2 = row2.apply(lambda x: 1 if x==-1. else 0)
+        vec2 = row2.values
+        row3 = X[j]
+        row3 = row3.apply(lambda x: 1 if x==0. else 0)
+        vec3 = row3.values
+        row4 = X[j]
+        row4 = row4.apply(lambda x: x if (x>=1 and x<=9) else 0)
+        vec4 = row4.values
+
+        newmtxs[i] = np.column_stack((vec1, vec2, vec3, vec4))
+        i+=1
+
+    # need to replace the arrays from X6-X11 with these matrices:
+    Xs = np.split(X, [5,11], axis=1)    # remove columns X6-X11
+    E1 = Xs[0].values   # left side     dims (29601, 5)
+    E2 = Xs[2].values   # right side    dims (29601, 12)
+
+    # these matrices are Everything we need except for the X6-X11 features.
+    # patching things together using the matrices in newmtx:
+    p1 =    np.append(newmtxs[0], newmtxs[1], axis=1) # sew the matrices
+    p2 =    np.append(newmtxs[2], newmtxs[3], axis=1)
+    p3 =    np.append(newmtxs[4], newmtxs[5], axis=1)
+    p4 =    np.append(p1, p2, axis=1)
+    p5 =    np.append(p3, p4, axis=1)
+    LS =    np.append(E1, p5, axis=1)   # left side
+    X  =    np.append(LS, E2, axis=1)   # right side
+
+    """CASES X2, X3, X4: One-hot encoding categories. These are purely
+    categorical, so the one-hot encoding is easier."""
     b = [1, 2, 3]
     b_elem = [1, 3, 2]  # no. of (additional) features from one-hot
-    extra = 0  # counts the extra indices needed after additions
+    extra = 0           # counts the extra indices needed after additions
 
     for j in range(3):
         i = b[j] + extra
         series = pd.Series(X[:, i])
         dummies = pd.get_dummies(series).values  # one hot encoded
         # add array into place 'i' (sandwitch dummies between arrays)
-        X = np.append(np.append(X[:, :i], dummies, axis=1), X[:, i + 1 :], axis=1)
+        X = np.append(np.append(X[:, :i], \
+            dummies, axis=1), X[:, i + 1 :], axis=1)
         # adding columns changes the 'i' indices we need.
         extra += b_elem[j]
 
-    return X
+    if True:
+        for i in range(10):
+            print(X[i,11:30])
 
+    return X
 
 def upsample(X, y, seed):
     """Function which generates copies of the minority class"""
@@ -160,13 +260,11 @@ def upsample(X, y, seed):
     X_resampled, y_resampled = ros.fit_resample(X, y)
     return X_resampled, y_resampled
 
-
 def downsample(X, y, seed):
     """Function which removes samples of the majority class"""
     rus = RandomUnderSampler(random_state=seed)
     X_resampled, y_resampled = rus.fit_resample(X, y)
     return X_resampled, y_resampled
-
 
 def sklearn_GDRegressor(X, y, intercept=False, eta0=0.1, max_iter=50, tol=1e-3):
     """
@@ -198,7 +296,6 @@ def sklearn_GDRegressor(X, y, intercept=False, eta0=0.1, max_iter=50, tol=1e-3):
     clf.fit(X, y)
     return clf
 
-
 def tensorflow_NNWsolver(X, y, Xt, yt):
     model = tf.keras.models.Sequential(
         [
@@ -217,7 +314,6 @@ def tensorflow_NNWsolver(X, y, Xt, yt):
 
     pred = model.predict(Xt)
     return pred
-
 
 def assert_binary_accuracy(y, u, unscaled=True):
     """
@@ -261,5 +357,7 @@ def assert_binary_accuracy(y, u, unscaled=True):
 
 
 if __name__ == "__main__":
-    X, y = read_in_data("defaulted_cc-clients.xls")
-    method = sklearn_GDRegressor(X, y)
+    read_in_data("defaulted_cc-clients.xls")
+    X, y = load_features_predictors()
+    # read
+    # method = sklearn_GDRegressor(X, y)
