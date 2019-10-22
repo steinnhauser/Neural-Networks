@@ -2,145 +2,132 @@ import numpy as np
 import sklearn
 
 
-def logistic_regression():
-    # need to determine:
-    #   Cost function
-    #   Design matrix
-
-    # Implement a gradient descent solver. Either:
-    #   Standartd GD with learning rate, or
-    #   Attempt Newton-Raphson method.
-
-    # May be useful to implement a Stochastic Gradient Descent method which has
-    # an argument "mini-batches". This is useful for the Neural Network later.
-    pass
-
-
-class GradientDescent:
-    def __init__(
-        self,
-        x0=0,
-        random_state_x0=False,
-        gamma_k=0.01,
-        max_iter=50,
-        tol=1e-5,
-        verbose=False,
-    ):
-        self.x0 = x0
-        self.gamma_k = gamma_k
+class StochasticGradientDescent:
+    """
+    Parameters:
+    -----------
+    beta0 : np.ndarray
+        Initial guess for the parameter vector
+    gamma : float
+        Learning rate of the iterative algorithm in fit(X, y)
+    max_iter : int
+        Maximum amount of iterations before exiting
+    tol : float
+        Tolerance which dictates when an answer is sufficient
+    verbose : bool
+        If True, messages are printed during iterations
+    """
+    def __init__(self, gamma, max_iter, batch_size, verbose=False):
+        self.gamma = gamma
         self.max_iter = max_iter
-        self.tol = tol
-        self.random_state_x0 = random_state_x0
+        self.batch_size = batch_size
         self.verbose = verbose
+        if self.gamma <= 0:
+            raise ValueError("Bad usage:\n\tThe learning rate is negative.")
 
-    def solve(self, X, y):
+    def fit(self, X, y, random_initial_beta=True, beta0=None):
+        """
+        Info:
+        -----
+        Stochastic gradient descent with mini-batches. Update beta according to:
+
+            beta_new = beta_old - gamma X^T (y - p)
+
+        but for each epoch, loop over number of mini-batches and only
+        use the data from that mini-batch.
+
+        Parameters:
+        -----------
+        X : np.ndarray
+            Design matrix
+        y : np.ndarray
+            Output values
+        random_initial_beta : bool
+            If True, generate a random initial beta0, if False the initial
+            guess should be given as the beta0 parameter
+        beta0 : np.ndarray
+            Will only be considered if random_initial_beta=False. Provide
+            an initial guess for beta0
+
+        Returns:
+        --------
+        beta : np.ndarray
+            Optimal parameter vector
+        """
         self.X = X
         self.y = y
-        self.gradient_descent_solver()
+        n =  X.shape[0]
+        num_batches = int(n/self.batch_size)
+        N = num_batches*self.batch_size # ignore the last (n%batch_size) data points
+        batches = np.random.permutation(N).reshape(num_batches, self.batch_size)
 
-    def gradient_descent_solver(self):
-        """
-        Calculates a gradient descent starting from x0.
-
-        Parameters:
-        -----------
-        x0 : vec
-            Initial guess for the minimum of F
-        gamma_k : float
-            Learning rate of the solver ('step size' of delF).
-        max_iter : int
-            Maximum amount of iterations before exiting.
-        tol : float
-            Tolerance which dictates when an answer is sufficient.
-
-        Returns:
-        --------
-        xsol : vec
-            Vector which produces a minimum of F.
-        """
-        if self.gamma_k <= 0:
-            raise ValueError("Bad useage:\n\tThe learning rate is negative.")
-
-        if self.random_state_x0:
-            preds = X.shape[1]  # p
-            self.xsol = (
-                (np.random.random(preds) - 0.5) * 0.7 / 0.5
-            )  # between [-0.7, 0.7]
-            if not type(self.x0) == int:
-                if not np.equal(self.x0.all(), 0):
-                    print("Useage Warning: Overwriting set x0 with random values.")
-            elif type(self.x0) == int and self.x0 != 0:
-                print(f"Useage Warning: Overwriting set x0={x0} with random values")
-
+        if random_initial_beta:
+            self._generate_random_initial_beta()
         else:
-            if type(self.x0) == int:
-                if self.x0:
-                    self.xsol = np.ones(self.X.shape[1]) * self.x0
-                else:
-                    self.xsol = np.zeros(self.X.shape[1])
-            elif type(self.x0) == np.ndarray:
-                if self.x0.shape[0] == self.X.shape[1]:  # if len = p
-                    self.xsol = self.x0
-                else:
-                    raise ValueError("Bad useage: x0 was not of length 1 or p.")
+            if not beta0:
+                raise ValueError("Bad usage:\n\tbeta0 must be provided" + \
+                " when random_initial_beta=False.")
             else:
-                raise ValueError(
-                    "Bad useage: x0 was not of type 'int' or 'numpy.ndarray'"
-                )
+                self.beta = beta0
 
-        # calculate the first step
-        self.calculate_p()
-        self.delF()
-        self.step = self.gamma_k * self.dF
+        if self.beta.shape[0] != self.X.shape[1]:
+            raise ValueError(f"Mismatch: beta has {self.beta.shape[0]}" + \
+            f"  features, X has {self.X.shape[1]} columns")
 
-        i = 0
-        while i <= self.max_iter:
-            self.xsol = self.xsol - self.step
-            # calculate the next step
-            self.calculate_p()
-            self.delF()
-            self.step = self.gamma_k * self.dF
-            if np.linalg.norm(self.step) <= self.tol:
-                print("GD reached tolerance.")
-                break
+        t0 = 1
+        t1 = 10
+        learning_rate = lambda t: t0/(t + t1)
+        self.bias = 0.1
+
+        for iter in range(self.max_iter): # epochs
+            for j in range(num_batches): # loop over batches
+                indices = batches[np.random.randint(num_batches),:] # random batch
+                _p = self._update_p(self.X[indices,:]) #
+                y_p = (self.y[indices] - _p)
+                self.bias -= np.mean(y_p)
+                gamma = learning_rate(iter*num_batches + j)
+                step = gamma * self.X[indices,:].T @ y_p
+                self.beta -= step
+
+            norm = np.linalg.norm(step)
             if self.verbose:
-                print(f"{i}\t{np.linalg.norm(self.step)}")
-            i += 1
+                print(f"Step {i:5}: norm(beta_j) = {norm:1.4e}")
 
-        if i >= self.max_iter:
-            print("GD reached max iteration.")
+        print(f"SGD done:\nnorm(beta) = {norm:1.4e}")
 
-    def delF(self):
+        return None
+
+    def _update_p(self, Xi):
         """
-        Calculates an estimation of the gradient of the cost function F.
+        Updates the probability vector using the sigmoid function.
+        """
+        return 1.0 / (1 + np.exp(- Xi @ self.beta + self.bias))
 
-        Parameters:
-        -----------
-        x : vec
-            Input which dictates where gradient should work from
+    def predict(self, Xt):
+        """
+        Info:
+        -----
+        Predict outputs yp given input values in Xt.
+        Note: fit must have been called before predict can be done!
 
         Returns:
         --------
-        dF : vec
-            Output of which direction F decreases in.
+        yp : np.ndarray
+            Predicted outputs
         """
-        a = self.y - self.p
-        self.dF = -self.X.T @ a
+        yp = self._update_p(Xt)
+        return yp
 
-    def calculate_p(self):
+    def _generate_random_initial_beta(self):
         """
-        Calculates the probability vector using the sigmoid function.
+        Info:
+        -----
+        Generate a random initial parameter vector
+
+        Returns:
+        --------
+            Updates self.beta0
         """
-        fac = self.X @ self.xsol
-        self.p = 1.0 / (1 + np.exp(-fac))  # np.exp(fac)(1+np.exp(fac))is strange
-
-    def predict(self, Xt, yt):
-        yp = Xt @ obj.xsol
-        a = fns.assert_binary_accuracy(yt, yp)
-        print(f"GDS had accuracy of {100*a:.0f} %")
-
-
-if __name__ == "__main__":
-    pass
-    # logistic_regression()
-    # CGMethods()
+        predictors = self.X.shape[1]  # p
+        self.beta = (np.random.random(predictors) - 0.5) * 1.4 #  in [-0.7, 0.7]
+        return None
