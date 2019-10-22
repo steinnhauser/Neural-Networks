@@ -6,12 +6,15 @@ import numpy as np
 from sklearn.linear_model import SGDRegressor
 from imblearn.over_sampling import RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler
+import os
 
 # column transformer for one hot useage
 # scikit learn one hot
 
-def read_in_data(fn, headers=False, shuffle=False, seed=0, scale=True,\
-            remove_outliers=True):
+
+def read_in_data(
+    fn, headers=False, shuffle=False, seed=0, scale=True, remove_outliers=True
+):
     """
     Reads in xls files using pandas and sorts dataframes.
 
@@ -39,31 +42,28 @@ def read_in_data(fn, headers=False, shuffle=False, seed=0, scale=True,\
         (1 x p) list of headers
     """
 
-    if __name__ == '__main__':
-        filename = "../" + fn
-    else:
-        filename = fn
+    filename = os.path.join("./data", fn)
 
-    df = pd.read_excel(filename) # shape (30001, 25)
-    dfs = np.split(df, [1,24], axis=1)
+    df = pd.read_excel(filename)  # shape (30001, 25)
+    dfs = np.split(df, [1, 24], axis=1)
     X = dfs[1].values[1:]
     y = dfs[2].values[1:]
 
     if remove_outliers:
         """remove categorical outliers"""
         # X2: Gender (1 = male; 2 = female).
-        valid_mask = np.logical_and(X[:,1] >= 1, X[:,1] <= 2)
+        valid_mask = np.logical_and(X[:, 1] >= 1, X[:, 1] <= 2)
         y = y[valid_mask]
         X = X[valid_mask]
 
         # X3: Education (1 = graduate school; 2 = university;\
         #   3 = high school; 4 = others).
-        valid_mask = np.logical_and(X[:,2] >= 1, X[:,2] <= 4)
+        valid_mask = np.logical_and(X[:, 2] >= 1, X[:, 2] <= 4)
         y = y[valid_mask]
         X = X[valid_mask]
 
         # X4: Marital status (1 = married; 2 = single; 3 = others)
-        valid_mask = np.logical_and(X[:,3] >= 1, X[:,3] <= 3)
+        valid_mask = np.logical_and(X[:, 3] >= 1, X[:, 3] <= 3)
         y = y[valid_mask]
         X = X[valid_mask]
 
@@ -77,10 +77,11 @@ def read_in_data(fn, headers=False, shuffle=False, seed=0, scale=True,\
         X, y = shuffle_Xy(X, y, seed)
 
     if headers:
-        headers = df.values[0,1:-2] # headers of X-columns in the same order.
+        headers = df.values[0, 1:-2]  # headers of X-columns in the same order.
         return X, y, headers
     else:
         return X, y
+
 
 def shuffle_Xy(X, y, seed):
     """
@@ -103,9 +104,10 @@ def shuffle_Xy(X, y, seed):
         Shuffled vector y row-wise
     """
 
-    X_sparse = scipy.sparse.coo_matrix(X) # a sparse matrix in coordinate format
+    X_sparse = scipy.sparse.coo_matrix(X)  # a sparse matrix in coordinate format
     X, X_sparse, y = sklearn.utils.shuffle(X, X_sparse, y, random_state=seed)
     return X, y
+
 
 def scale_data(X):
     """
@@ -132,24 +134,25 @@ def scale_data(X):
     # Scale large data values by indices
     a = [0, 4, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
     for i in a:
-        X[:,i] = X[:,i] - X[:,i].min()
-        X[:,i] = X[:,i] / X[:,i].max()
+        X[:, i] = X[:, i] - X[:, i].min()
+        X[:, i] = X[:, i] / X[:, i].max()
 
     # One-hot encoding values by indices
     b = [1, 2, 3]
-    b_elem = [1, 3, 2] # no. of (additional) features from one-hot
-    extra = 0 # counts the extra indices needed after additions
+    b_elem = [1, 3, 2]  # no. of (additional) features from one-hot
+    extra = 0  # counts the extra indices needed after additions
 
     for j in range(3):
-        i=b[j]+extra
-        series = pd.Series(X[:,i])
-        dummies = pd.get_dummies(series).values # one hot encoded
+        i = b[j] + extra
+        series = pd.Series(X[:, i])
+        dummies = pd.get_dummies(series).values  # one hot encoded
         # add array into place 'i' (sandwitch dummies between arrays)
-        X = np.append(np.append(X[:,:i], dummies, axis=1), X[:,i+1:], axis=1)
+        X = np.append(np.append(X[:, :i], dummies, axis=1), X[:, i + 1 :], axis=1)
         # adding columns changes the 'i' indices we need.
         extra += b_elem[j]
 
     return X
+
 
 def upsample(X, y, seed):
     """Function which generates copies of the minority class"""
@@ -157,11 +160,13 @@ def upsample(X, y, seed):
     X_resampled, y_resampled = ros.fit_resample(X, y)
     return X_resampled, y_resampled
 
+
 def downsample(X, y, seed):
     """Function which removes samples of the majority class"""
     rus = RandomUnderSampler(random_state=seed)
     X_resampled, y_resampled = rus.fit_resample(X, y)
     return X_resampled, y_resampled
+
 
 def sklearn_GDRegressor(X, y, intercept=False, eta0=0.1, max_iter=50, tol=1e-3):
     """
@@ -182,37 +187,37 @@ def sklearn_GDRegressor(X, y, intercept=False, eta0=0.1, max_iter=50, tol=1e-3):
     clf : SGDRegressor object
         Classifier for data X and y, where clf.coef_ = 'beta'
     """
-    clf = sklearn.linear_model.SGDRegressor(penalty='none',learning_rate=\
-        'constant', eta0=eta0, max_iter=max_iter, fit_intercept=intercept,\
-        tol=tol)
-    clf.fit(X,y)
+    clf = sklearn.linear_model.SGDRegressor(
+        penalty="none",
+        learning_rate="constant",
+        eta0=eta0,
+        max_iter=max_iter,
+        fit_intercept=intercept,
+        tol=tol,
+    )
+    clf.fit(X, y)
     return clf
+
 
 def tensorflow_NNWsolver(X, y, Xt, yt):
     model = tf.keras.models.Sequential(
         [
-            tf.keras.layers.Dense(24, activation='tanh'),
-            tf.keras.layers.Dense(16, activation='tanh'),
-            tf.keras.layers.Dense(8, activation='tanh'),
-            tf.keras.layers.Dense(4, activation='tanh'),
-            tf.keras.layers.Dense(1, activation = 'sigmoid')
+            tf.keras.layers.Dense(24, activation="tanh"),
+            tf.keras.layers.Dense(16, activation="tanh"),
+            tf.keras.layers.Dense(8, activation="tanh"),
+            tf.keras.layers.Dense(4, activation="tanh"),
+            tf.keras.layers.Dense(1, activation="sigmoid")
             # tf.keras.layers.Dropout(0.2),
         ]
-    ) # try two outputs and softmax (well taylored for )
+    )  # try two outputs and softmax (well taylored for )
     model.compile(
-        optimizer = 'adam',
-        loss = 'categorical_crossentropy',
-        metrics = ['accuracy']
+        optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"]
     )
-    model.fit(
-        X, y,
-        epochs = 30,
-        batch_size =100,
-        validation_data = (Xt, yt)
-    )
+    model.fit(X, y, epochs=30, batch_size=100, validation_data=(Xt, yt))
 
     pred = model.predict(Xt)
     return pred
+
 
 def assert_binary_accuracy(y, u, unscaled=True):
     """
@@ -235,25 +240,26 @@ def assert_binary_accuracy(y, u, unscaled=True):
     """
     if unscaled:
         # declare y<0.5 to be 0 and y>0.5 to be 1.
-        u[np.where(u>0.5)] = 1
-        u[np.where(u<0.5)] = 0
+        u[np.where(u > 0.5)] = 1
+        u[np.where(u < 0.5)] = 0
 
         count = 0
         for i in range(len(y)):
             print(f"Output: {u[i]}, True: {y[i]}")
-            if y[i]==u[i]:
-                count+=1
-        acc = count/len(y)
+            if y[i] == u[i]:
+                count += 1
+        acc = count / len(y)
         return acc
 
     else:
         count = 0
         for i in range(len(y)):
-            if y[i]==u[i]:
-                count+=1
-        acc = count/len(y)
+            if y[i] == u[i]:
+                count += 1
+        acc = count / len(y)
         return acc
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     X, y = read_in_data("defaulted_cc-clients.xls")
     method = sklearn_GDRegressor(X, y)

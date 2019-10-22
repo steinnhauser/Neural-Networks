@@ -1,6 +1,7 @@
 import numpy as np
 import sklearn
 
+
 def logistic_regression():
     # need to determine:
     #   Cost function
@@ -14,15 +15,23 @@ def logistic_regression():
     # an argument "mini-batches". This is useful for the Neural Network later.
     pass
 
+
 class GradientDescent:
-    def __init__(self, x0=0, random_state_x0=False,\
-        gamma_k = 0.01, max_iter=50, tol=1e-5, verbose=False):
+    def __init__(
+        self,
+        x0=0,
+        random_state_x0=False,
+        gamma_k=0.01,
+        max_iter=50,
+        tol=1e-5,
+        verbose=False,
+    ):
         self.x0 = x0
         self.gamma_k = gamma_k
         self.max_iter = max_iter
         self.tol = tol
-        self.random_state_x0=random_state_x0
-        self.verbose=verbose
+        self.random_state_x0 = random_state_x0
+        self.verbose = verbose
 
     def solve(self, X, y):
         self.X = X
@@ -53,28 +62,31 @@ class GradientDescent:
             raise ValueError("Bad useage:\n\tThe learning rate is negative.")
 
         if self.random_state_x0:
-            preds = X.shape[1] # p
-            self.xsol = (np.random.random(preds) - 0.5)*0.7/0.5 # between [-0.7, 0.7]
+            preds = X.shape[1]  # p
+            self.xsol = (
+                (np.random.random(preds) - 0.5) * 0.7 / 0.5
+            )  # between [-0.7, 0.7]
             if not type(self.x0) == int:
                 if not np.equal(self.x0.all(), 0):
                     print("Useage Warning: Overwriting set x0 with random values.")
-            elif type(self.x0) == int and self.x0!=0:
+            elif type(self.x0) == int and self.x0 != 0:
                 print(f"Useage Warning: Overwriting set x0={x0} with random values")
 
         else:
             if type(self.x0) == int:
                 if self.x0:
-                    self.xsol = np.ones(self.X.shape[1])*self.x0
+                    self.xsol = np.ones(self.X.shape[1]) * self.x0
                 else:
-                    self.xsol=np.zeros(self.X.shape[1])
+                    self.xsol = np.zeros(self.X.shape[1])
             elif type(self.x0) == np.ndarray:
-                if self.x0.shape[0]==self.X.shape[1]: # if len = p
+                if self.x0.shape[0] == self.X.shape[1]:  # if len = p
                     self.xsol = self.x0
                 else:
                     raise ValueError("Bad useage: x0 was not of length 1 or p.")
             else:
-                raise\
-            ValueError("Bad useage: x0 was not of type 'int' or 'numpy.ndarray'")
+                raise ValueError(
+                    "Bad useage: x0 was not of type 'int' or 'numpy.ndarray'"
+                )
 
         # calculate the first step
         self.calculate_p()
@@ -87,7 +99,7 @@ class GradientDescent:
             # calculate the next step
             self.calculate_p()
             self.delF()
-            self.step = self.gamma_k*self.dF
+            self.step = self.gamma_k * self.dF
             if np.linalg.norm(self.step) <= self.tol:
                 print("GD reached tolerance.")
                 break
@@ -97,7 +109,6 @@ class GradientDescent:
 
         if i >= self.max_iter:
             print("GD reached max iteration.")
-
 
     def delF(self):
         """
@@ -114,21 +125,22 @@ class GradientDescent:
             Output of which direction F decreases in.
         """
         a = self.y - self.p
-        self.dF = - self.X.T @ a
+        self.dF = -self.X.T @ a
 
     def calculate_p(self):
         """
         Calculates the probability vector using the sigmoid function.
         """
         fac = self.X @ self.xsol
-        self.p = 1./(1+np.exp(-fac)) # np.exp(fac)(1+np.exp(fac))is strange
+        self.p = 1.0 / (1 + np.exp(-fac))  # np.exp(fac)(1+np.exp(fac))is strange
 
     def predict(self, Xt, yt):
         yp = Xt @ obj.xsol
         a = fns.assert_binary_accuracy(yt, yp)
         print(f"GDS had accuracy of {100*a:.0f} %")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     pass
     # logistic_regression()
     # CGMethods()
