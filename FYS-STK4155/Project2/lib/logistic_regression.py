@@ -6,16 +6,23 @@ class StochasticGradientDescent:
     """
     Parameters:
     -----------
-    beta0 : np.ndarray
-        Initial guess for the parameter vector
-    gamma : float
-        Learning rate of the iterative algorithm in fit(X, y)
-    max_iter : int
-        Maximum amount of iterations before exiting
-    tol : float
-        Tolerance which dictates when an answer is sufficient
-    verbose : bool
-        If True, messages are printed during iterations
+        beta0 : np.ndarray
+            Initial guess for the parameter vector
+        gamma : float
+            Learning rate of the iterative algorithm in fit(X, y)
+        max_iter : int
+            Maximum amount of iterations before exiting
+        tol : float
+            Tolerance which dictates when an answer is sufficient
+        verbose : bool, default False
+            If True, messages are printed during iterations
+
+    Functions:
+    ----------
+        fit
+        _update_p
+        predict
+        _generate_random_initial_beta
     """
     def __init__(self, gamma, max_iter, batch_size, verbose=False):
         self.gamma = gamma
