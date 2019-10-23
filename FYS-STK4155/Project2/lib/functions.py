@@ -160,7 +160,7 @@ def shuffle_Xy(X, y, seed):
     X, X_sparse, y = sklearn.utils.shuffle(X, X_sparse, y, random_state=seed)
     return X, y
 
-def scale_data(X):
+def scale_data(X, meanzero=True, probability=False):
     """
     Function to scale the columns of X.
     Columns which have large datapoints:
@@ -189,8 +189,15 @@ def scale_data(X):
     should be scaled is up for debate though the typical is between 0-1."""
     a = [0, 4, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
     for i in a:
-        X[:, i] = X[:, i] - X[:, i].min()
-        X[:, i] = X[:, i] / X[:, i].max()
+        if probability:
+            # values from 0 to 1:
+            X[:, i] = X[:, i] - X[:, i].min()
+            X[:, i] = X[:, i] / X[:, i].max()
+
+        if meanzero:
+            # values with mean=0 and std=1:
+            X[:, i] = X[:, i] - np.mean(X[:, i])
+            X[:, i] = X[:, i] / np.std(X[:, i])
 
     """CASES X6-X11: Separate categorical and continuous data. Do this first
     to avoid changing the indices for the categories lower down."""
@@ -211,10 +218,14 @@ def scale_data(X):
         row3 = row3.apply(lambda x: 1 if x==0. else 0)
         vec3 = row3.values
         row4 = X[j]
-        row4 = row4.apply(lambda x: x if (x>=1 and x<=9) else 0)
+        norm = np.mean([1, 2, 3, 4, 5, 6, 7, 8, 9]) # for normalization
+        std  = np.std([1, 2, 3, 4, 5, 6, 7, 8, 9])
+        row4 = row4.apply(lambda x: (x-norm)/std if (x>=1 and x<=9) else 0)
         vec4 = row4.values
 
-        newmtxs[i] = np.column_stack((vec1, vec2, vec3, vec4))
+        A = np.column_stack((vec1, vec2))
+        B = np.column_stack((vec3, vec4))
+        newmtxs[i] = np.append(A,B, axis=1)
         i+=1
 
     # need to replace the arrays from X6-X11 with these matrices:
@@ -228,7 +239,7 @@ def scale_data(X):
     p2 =    np.append(newmtxs[2], newmtxs[3], axis=1)
     p3 =    np.append(newmtxs[4], newmtxs[5], axis=1)
     p4 =    np.append(p1, p2, axis=1)
-    p5 =    np.append(p3, p4, axis=1)
+    p5 =    np.append(p4, p3, axis=1)
     LS =    np.append(E1, p5, axis=1)   # left side
     X  =    np.append(LS, E2, axis=1)   # right side
 
@@ -247,10 +258,6 @@ def scale_data(X):
             dummies, axis=1), X[:, i + 1 :], axis=1)
         # adding columns changes the 'i' indices we need.
         extra += b_elem[j]
-
-    if True:
-        for i in range(10):
-            print(X[i,11:30])
 
     return X
 
