@@ -6,7 +6,7 @@ class Neuron:
     """
     Neuron class. Initialize before adding hidden layers and outputs.
 
-    Attributes:
+    Parameters:
     -----------
         eta : float
             Learning rate for the bias and weight differences.
