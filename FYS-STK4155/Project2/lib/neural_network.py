@@ -242,13 +242,11 @@ class Neuron:
         diff_b[l] = np.sum(d[l], axis=0)
         diff_w[l] = self.X.T @ d[l]
 
-        print("-----------")
         self.err_bw = 0
         for i in range(self.n_hlayers + 1):
             self.biases[i] -= self.eta * diff_b[i]
             self.weights[i] -= self.eta * diff_w[i]
             self.err_bw += abs(np.sum(diff_b[i])) + abs(np.sum(diff_w[i]))
-        print(self.err_bw)
         # The parameter eta is the learning parameter discussed in connection
         # with the gradient descent methods. Here it is convenient to use
         # stochastic gradient descent with mini-batches with an outer loop
@@ -261,54 +259,50 @@ class Neuron:
             iter = self.act_fn[l](iter @ self.weights[l] + self.biases[l])
         self.output = iter
 
-    def train_neuron(self, X, y, train_no=100):
-        """Function to train the netorks weights and biases"""
+    def train_neuron(self, X, y, epochs, train_no=100):
+        """Function to train the netorks weights and biases. This function runs
+        through one 'epoch' and saves the data as a number between 0 and 1."""
         done = 0
         iterations = int(train_no / self.batchsize)
-        for i in range(iterations):
-            s = i * self.batchsize  # start
-            e = s + self.batchsize  # end
-            self.set_inputs(X[s:e, :])
-            self.set_outputs(y[s:e], activation="sigmoid")
-            self.fb_propogation()
-            if str(self.output) == "[nan]":
-                print("Something went wrong. Output is 'nan'...")
-                break
-            if self.err_bw < self.tol_bw and not done:
-                print(f"Network is trained up to tolerance after {s} sets.")
-                done += 1
+        for j in range(epochs):
+            for i in range(iterations):
+                s = i * self.batchsize  # start
+                e = s + self.batchsize  # end
+                self.set_inputs(X[s:e, :])
+                self.set_outputs(y[s:e], activation="sigmoid")
+                self.fb_propogation()
+                if str(self.output) == "[nan]":
+                    print("Something went wrong. Output is 'nan'...")
+                    break
+                if self.err_bw < self.tol_bw and not done:
+                    print(f"Network is trained up to tolerance after {s} sets.")
+                    done += 1
+            if j%10==0:
+                print(f"Epochs: {(j/epochs)*100:.2f}%.")
         print("--------------")
         print("Network Trained.")
         self.save_data()
 
-    def test_neuron(self, X, y, test_no=100, load_data=False):
+    def test_neuron(self, X, y, load_data, cfn=" "):
         """Function the test the networks capabilities"""
+        self.batchsize=10
         if self.verbose:
             print("-------------")
             print("Testing:")
         if load_data:
-            self.load_data()
-        correct = 0
-        iterations = int(test_no / self.batchsize)
+            self.load_data(cfn)
+        iterations = int(len(y) / self.batchsize)
+        ypred = np.zeros(len(y) - len(y)%self.batchsize)   # account for rests
         for i in range(iterations):
             s = i * self.batchsize  # start
             e = s + self.batchsize  # end
             self.set_inputs(X[s:e, :])
             self.set_outputs(y[s:e], activation="sigmoid")
-            print(self.X.shape)
-            print(self.weights[0].shape)
-            print(self.biases[0].shape)
             self.feedforward()  # feed the network forward once using W and b.
-            # self.output_func() # produce prediction
-            if (self.output > 0.5 and self.y == 1) or (
-                self.output < 0.5 and self.y == 0
-            ):
-                correct += 1
+            ypred[s:e] += self.output.reshape(-1,)   # save the outputs
 
-            self.verbose = True
-            if self.verbose:
-                print(f"Output:\t{self.output}\tTrue:\t{self.y}")
-        print(f"Network had an accuracy of {correct/test_no*100:.2f} %")
+        self.declare_results(y[:e], ypred[:e], round=True)
+        print(f"Network had an accuracy of {100*self.acc:.2f} %")
 
     def save_data(self):
         """Function to save the weights and biases for a network"""
@@ -334,26 +328,30 @@ class Neuron:
         else:
             print("Data not saved.")
 
-    def load_data(self, fn1="weight_data.npy", fn2="bias_data.npy"):
+    def load_data(self, cfn, fn1="weight_data.npy", fn2="bias_data.npy"):
         """Function to load the weights and biases for a network"""
         pwd = "bin/"
-        self.weights = np.load(pwd + fn1, allow_pickle=True)
-        self.biases = np.load(pwd + fn2, allow_pickle=True)
+        if cfn == " ":  # if no custom filename is provided:
+            self.weights = np.load(pwd + fn1, allow_pickle=True)
+            self.biases = np.load(pwd + fn2, allow_pickle=True)
+        else:
+            self.weights = np.load(pwd + cfn + "1.npy", allow_pickle=True)
+            self.biases = np.load(pwd + cfn + "2.npy", allow_pickle=True)
         print("Data loaded.")
 
-    def assert_accuracy(self, X, y, test_sample=100):
-        """Function to assert the binary accuracy of a network"""
-        results = np.zeros(test_sample)
-        for i in range(test_sample):
-            self.X = X[i, :]
-            self.feedforward()
-            output = self.output_func()
-            results[i] = output
+    def declare_results(self, ytrue, ypred, round=True):
+        """Declare the results, assign the accuracy"""
+        if round:
+            ypred[np.where(ypred>=0.5)] = 1
+            ypred[np.where(ypred<0.5)]  = 0
+            for i in range(len(ytrue)):
+                print(f"Output:\t{ypred[i]}\tTrue:\t{ytrue[i]}" + (\
+                    " Correct!" if ypred[i]==ytrue[i] else " "))
+        else:
+            for i in range(len(ytrue)):
+                print(f"Output:\t{ypred[i]}\tTrue:\t{ytrue[i]}")
 
-        # results = (np.random.random(test_sample))*0.7/0.5 # test this as results.
-        self.acc = fns.assert_binary_accuracy(y[:test_sample], results)
-        print(f"Network produced an accuracy of {100*self.acc:.2f}%")
-
+        self.acc = fns.assert_binary_accuracy(ytrue, ypred)
 
 if __name__ == "__main__":
     pass
