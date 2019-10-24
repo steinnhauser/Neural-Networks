@@ -179,35 +179,31 @@ def scale_data(X, meanzero=True, probability=False):
                     at the end of period.'
             -2  is 'Balance payed in full and no transactions in this period'
                     (inactive)
-
-    The other data is not necessary to scale.
     """
 
 
-
     """CASES X1, X5, X12-X23: Scale large data values by indices. How these
-    should be scaled is up for debate though the typical is between 0-1."""
+    should be scaled is up for debate though the default is mean=0, std=1"""
     a = [0, 4, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
     for i in a:
-        if probability:
-            # values from 0 to 1:
-            X[:, i] = X[:, i] - X[:, i].min()
-            X[:, i] = X[:, i] / X[:, i].max()
-
         if meanzero:
             # values with mean=0 and std=1:
             X[:, i] = X[:, i] - np.mean(X[:, i])
             X[:, i] = X[:, i] / np.std(X[:, i])
 
+        elif probability:
+            # values from 0 to 1:
+            X[:, i] = X[:, i] - X[:, i].min()
+            X[:, i] = X[:, i] / X[:, i].max()
+
     """CASES X6-X11: Separate categorical and continuous data. Do this first
     to avoid changing the indices for the categories lower down."""
     c = [5, 6, 7, 8, 9, 10]
-
     newmtxs = np.zeros(6, dtype = np.ndarray)
     i=0
     X = pd.DataFrame(X)
     for j in c:
-        # 'manual' one-hot encoding
+        # 'manual' one-hot encoding:
         row1 = X[j]
         row1 = row1.apply(lambda x: 1 if x==-2. else 0)
         vec1 = row1.values
@@ -218,13 +214,18 @@ def scale_data(X, meanzero=True, probability=False):
         row3 = row3.apply(lambda x: 1 if x==0. else 0)
         vec3 = row3.values
         row4 = X[j]
-        norm = np.mean([1, 2, 3, 4, 5, 6, 7, 8, 9]) # for normalization
-        std  = np.std([1, 2, 3, 4, 5, 6, 7, 8, 9])
-        row4 = row4.apply(lambda x: (x-norm)/std if (x>=1 and x<=9) else 0)
-        vec4 = row4.values
+        if meanzero:
+            norm = np.mean([1, 2, 3, 4, 5, 6, 7, 8, 9]) # for normalization
+            std  = np.std([1, 2, 3, 4, 5, 6, 7, 8, 9])
+            row4 = row4.apply(lambda x: (x-norm)/std if (x>=1 and x<=9) else 0)
+            vec4 = row4.values
+        elif probability:
+            row4 = row4.apply(lambda x: (x-1)/9 if (x>=1 and x<=9) else 0)
+            vec4 = row4.values
 
         A = np.column_stack((vec1, vec2))
         B = np.column_stack((vec3, vec4))
+        # combine the new column matrices (N,2) to a matrix of size (N,4):
         newmtxs[i] = np.append(A,B, axis=1)
         i+=1
 
@@ -233,15 +234,15 @@ def scale_data(X, meanzero=True, probability=False):
     E1 = Xs[0].values   # left side     dims (29601, 5)
     E2 = Xs[2].values   # right side    dims (29601, 12)
 
-    # these matrices are Everything we need except for the X6-X11 features.
-    # patching things together using the matrices in newmtx:
-    p1 =    np.append(newmtxs[0], newmtxs[1], axis=1) # sew the matrices
+    """These matrices are all the data columns except for X6-X11. We want to
+    replace these columns with the new matrices in the newmtxs list:"""
+    p1 =    np.append(newmtxs[0], newmtxs[1], axis=1) # combine the matrices
     p2 =    np.append(newmtxs[2], newmtxs[3], axis=1)
-    p3 =    np.append(newmtxs[4], newmtxs[5], axis=1)
-    p4 =    np.append(p1, p2, axis=1)
-    p5 =    np.append(p4, p3, axis=1)
-    LS =    np.append(E1, p5, axis=1)   # left side
-    X  =    np.append(LS, E2, axis=1)   # right side
+    pR =    np.append(newmtxs[4], newmtxs[5], axis=1)
+    pL =    np.append(p1, p2, axis=1)
+    p5 =    np.append(pL, pR, axis=1)   # combine Left and Right sides
+    LS =    np.append(E1, p5, axis=1)   # combine with E1 and E2
+    X  =    np.append(LS, E2, axis=1)   # final scaled product
 
     """CASES X2, X3, X4: One-hot encoding categories. These are purely
     categorical, so the one-hot encoding is easier."""
@@ -322,7 +323,7 @@ def tensorflow_NNWsolver(X, y, Xt, yt):
     pred = model.predict(Xt)
     return pred
 
-def assert_binary_accuracy(y, u, unscaled=True):
+def assert_binary_accuracy(y, u, unscaled=True, verbose=False):
     """
     Takes in testing data y and prediction u and
     calculates the accuracy of the prediction.
@@ -348,7 +349,9 @@ def assert_binary_accuracy(y, u, unscaled=True):
 
         count = 0
         for i in range(len(y)):
-            print(f"Output: {u[i]}, True: {y[i]}")
+            if verbose:
+                print(f"Output: {u[i]}, True: {y[i]}" + (\
+                    " Correct!" if ypred[i]==ytrue[i] else " "))
             if y[i] == u[i]:
                 count += 1
         acc = count / len(y)
@@ -364,7 +367,5 @@ def assert_binary_accuracy(y, u, unscaled=True):
 
 
 if __name__ == "__main__":
-    read_in_data("defaulted_cc-clients.xls")
+    # read_in_data("defaulted_cc-clients.xls")
     X, y = load_features_predictors()
-    # read
-    # method = sklearn_GDRegressor(X, y)
