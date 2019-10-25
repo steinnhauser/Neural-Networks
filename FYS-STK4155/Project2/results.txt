@@ -1,0 +1,56 @@
+MSE, 60,50,40,30,20,10,6,1 nodes. Tanh used for all except for last.
+batchsize 10,
+-------------------------------------------------
+hyperparam = 0.1, learning rate = 0.1
+    epochs=100
+    Network had an accuracy of 50.02 % (only 1's)
+    epochs=200
+    Network had an accuracy of 50.02 % (only 1's)
+    epochs=300
+    Network had an accuracy of 50.00 % (only 1's)
+
+hyperparam = 0.01, learning rate = 0.1
+    epochs=100
+    Network had an accuracy of 50.00 % (only 0's)
+    epochs=200
+    Network had an accuracy of 50.00 % (only 0's)
+    epochs=300
+    Network had an accuracy of 49.99 % (only 1's)
+
+hyperparam = 0.1, learning rate = 0.01
+    epochs=100
+    Network had an accuracy of 49.99 % (only 1's)
+    epochs=200
+    Network had an accuracy of 68.60 %
+    epochs=300
+    Network had an accuracy of 65.89 %
+
+hyperparam = 0.01, learning rate = 0.01
+    epochs=100
+    Network had an accuracy of 58.90 %
+    epochs=200
+    Network had an accuracy of 68.17 %
+    epochs=300
+    Network had an accuracy of 68.04 %
+
+-------------------------------------------------
+MSE, 60,50,40,30,20,10,6,1 nodes. Sigmoid used for all
+batchsize 10,
+-------------------------------------------------
+hyperparam = 0.01, learning rate = 0.01
+    epochs=100
+    Network had an accuracy of 50.00 % (only 1's)
+
+hyperparam = 0.1, learning rate = 0.01
+    epochs=100
+    Network had an accuracy of 50.00 % (only 1's)
+
+hyperparam = 0.01, learning rate = 0.1
+    epochs=100
+    Network had an accuracy of 50.01 % (only 1's)
+
+hyperparam = 0.1, learning rate = 0.1
+    epochs=100
+    Network had an accuracy of 49.98 % (only 0's)
+-------------------------------------------------
+Next to study: Xentropy trying to implement softmax act functions...
