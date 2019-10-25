@@ -19,7 +19,7 @@ def main():
     # Xf, yf = fns.downsample(Xf, yf, sd)
 
     X, Xt, y, yt = sklearn.model_selection.train_test_split(
-        Xf, yf, test_size=0.1, random_state=sd, stratify=yf
+        Xf, yf, test_size=0.25, random_state=sd, stratify=yf
     )
 
     # ----------------- Classification (credit card data) ----------------
@@ -88,9 +88,10 @@ def FFNN_backpropagation(X, y, Xt, yt):
     (see "./lib/neural_network.py")
     """
     n1 = nnw.Neuron(
-        eta=0.1, maxiter=1, tol_bw=1e-3, cost_fn_str="MSE", batchsize=10
+        eta=0.1, tol_bw=1e-3, cost_fn_str="xentropy", batchsize=10
     )
 
+    n1.features = X.shape[1]
     n1.add_hlayer(60, activation="tanh")
     n1.add_hlayer(50, activation="tanh")
     n1.add_hlayer(40, activation="tanh")
@@ -99,14 +100,14 @@ def FFNN_backpropagation(X, y, Xt, yt):
     n1.add_hlayer(10, activation="tanh")
     n1.add_hlayer(6, activation="tanh")
     n1.set_outputs(y[0], activation="sigmoid")
-    n1.set_inputs(X[0, :], init=True)
+    n1.set_inputs(X[0], init=True)
     n1.set_biases()
     n1.set_weights()
-    n1.set_cost_fn()  # require in/outputs
+    n1.set_cost_fn(reg_str = ' ', hyperp=0.1)  # require in/outputs
 
-    # n1.train_neuron(X, y, epochs=5000)
-    customfn = "sixty_tanh_b10"  # custom saved weights and biases
-    n1.test_neuron(Xt, yt, load_data=True, cfn=customfn)
+    n1.train_neuron(X, y, epochs=100)
+    # customfn = "sixty_tanh_b10"  # custom saved weights and biases
+    n1.test_neuron(Xt, yt, load_data=False) #, cfn=customfn
     # return *make accuracy string*
     return " "
 
@@ -120,24 +121,4 @@ if __name__ == "__main__":
 """
 Neural network slides:
 https://compphysics.github.io/MachineLearning/doc/pub/NeuralNet/html/._NeuralNet-bs023.html
-"""
-
-
-"""
-Accomplished:
-Xentropy:
-    Network had an accuracy of 62.13 %
-MSE:
-    Network had an accuracy of 63.30 %
-
-Using:
-
-"""
-
-"""
-Record:
-68.74% accuracy using:
-    Nodes   [40, 30, 18, 12, 6, 1],
-    ActFn   [t,  t,  t,  t,  t, s],
-MSE, and 10% testing data. 1000 epochs, batch size 10
 """
