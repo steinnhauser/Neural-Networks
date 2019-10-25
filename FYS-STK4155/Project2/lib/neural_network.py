@@ -155,14 +155,38 @@ class Neuron:
         else:
             raise SyntaxError("Weights must be 'zeros', 'random' or 'small'.")
 
-    def set_cost_fn(self):
-        """Set the cost function"""
+    def regularization(self):
+        if self.reg_str == " ":
+            return 0
+        elif self.reg_str == "l1":
+            a = 0
+            for i in range(self.n_hlayers+1):
+                a+= np.sum(abs(self.weights[i]))/(2*self.features)
+            return self.hyperp*a
+        elif self.reg_str == "l2":
+            a = 0
+            for i in range(self.n_hlayers+1):
+                a+= np.sum(self.weights[i])**2/(2*self.features)
+            return self.hyperp*a
+
+        else:
+            raise SyntaxError("Regularization must be l1, l2.")
+
+    def set_cost_fn(self, reg_str = ' ', hyperp=0.1):
+        """Set the cost function. Also assign a regularization to the same
+        cost function. Regularizations are between l1 and l2, where the weights
+        are summed over using a hyperparameter."""
+        self.hyperp = hyperp
+        self.reg_str = reg_str
         if self.cost_fn_str == "MSE":
-            self.cost_fn = lambda u: 0.5 * (self.y - u) ** 2
-            self.cost_der = lambda u: np.vectorize(-(self.y - u))
+            self.cost_fn = lambda u: \
+                (1./2*self.features) * np.sum(self.y-u)**2 +\
+                    self.regularization()
+            self.cost_der = lambda u: \
+                np.vectorize(-(self.y - u))
         elif self.cost_fn_str == "xentropy":
-            self.cost_fn = lambda u: -self.y * np.log(u)
-            self.cost_der = lambda u: u - self.y
+            self.cost_fn = lambda u: -self.y * np.log(u) #+ reg(u)
+            self.cost_der = lambda u: u - self.y #+ dreg(u)
         else:
             raise SyntaxError("Cost function must be 'MSE' or 'xentropy'")
 
@@ -177,9 +201,11 @@ class Neuron:
             self.outputs_set = True
 
     def set_inputs(self, X, init=False):
-        """Sets the inputs X (shape batch x p)"""
+        """Sets the inputs X (batch x p)"""
         self.X = X
+
         if not init:
+            self.features = X.shape[1]
             if self.batchsize != X.shape[0]:
                 raise ValueError("Error, shape of X does not match batchsize.")
 
@@ -244,6 +270,8 @@ class Neuron:
 
         self.err_bw = 0
         for i in range(self.n_hlayers + 1):
+            # add the regularization term to the weights:
+            diff_w[i] -=  self.hyperp * self.weights[i]/self.features
             self.biases[i] -= self.eta * diff_b[i]
             self.weights[i] -= self.eta * diff_w[i]
             self.err_bw += abs(np.sum(diff_b[i])) + abs(np.sum(diff_w[i]))
@@ -277,8 +305,10 @@ class Neuron:
                 if self.err_bw < self.tol_bw and not done:
                     print(f"Network is trained up to tolerance after {s} sets.")
                     done += 1
+            X, y = fns.shuffle_Xy(X,y,j)  #shuffle after each epoch for stochasticity
             if j%10==0:
-                print(f"Epochs: {(j/epochs)*100:.2f}%.")
+                print(f"Epochs: {(j/epochs)*100:.2f}%." + \
+                    f" Cost = {self.cost_fn(self.output)}")
         print("--------------")
         print("Network Trained.")
         self.save_data()
