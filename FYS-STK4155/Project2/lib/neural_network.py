@@ -1,5 +1,6 @@
 import numpy as np
 import lib.functions as fns
+import scipy.special as sps
 
 
 class Neuron:
@@ -55,13 +56,10 @@ class Neuron:
     def __init__(
         self,
         eta=0.1,
-        biases_str="random",
-        weights_str="random",
+        biases_str="small",
+        weights_str="small",
         cost_fn_str="MSE",
-        datasets_sampled=0,
         verbose=False,
-        tol_bw=1e-5,
-        maxiter=1,
         batchsize=10,
     ):
 
@@ -79,10 +77,8 @@ class Neuron:
         self.outputs_set = False  # if the output is set
         self.inputs_set = False  # if the input is set
 
-        self.datasets_sampled = datasets_sampled  # sets the network has been trained on
+        self.datasets_sampled = 0 # sets the network has been trained on
         self.verbose = verbose  # print unnessecary indications
-        self.tol_bw = tol_bw  # bias and weight diff tolerance
-        self.maxiter = maxiter  # max number of f/b propogation iterations
         self.batchsize = batchsize  # size of batches
 
     def add_hlayer(self, n_nodes, activation):
@@ -104,10 +100,23 @@ class Neuron:
         elif act_str == "relu":
             self.act_fn += [np.vectorize(lambda z: 0 if z < 0.0 else z)]
             self.act_der += [np.vectorize(lambda z: 0 if z < 0.0 else 1)]
+        elif act_str == "relu6":
+            # z for 0<z<6, 0 for z<0, 6 for z>6.
+            self.act_fn += \
+            [np.vectorize(lambda z: 0 if z < 0.0 else (z if (0<z<6) else 6))]
+            self.act_der += \
+            [np.vectorize(lambda z: 0 if z < 0.0 else (1 if (0<z<6) else 0))]
         elif act_str == "softmax":
-            self.act_fn += [np.vectorize(lambda u: np.exp(u) / np.sum(np.exp(u)))]
+            self.act_fn += [
+                np.vectorize(lambda u: np.exp(u) / np.sum(np.exp(u)))
+            ]
             self.act_der += [
                 np.vectorize(lambda u: self.cost_fn(u) * (1 - self.cost_fn(u)))
+            ]
+        elif act_str == "softsign":
+            self.act_fn += [np.vectorize(lambda u: u/(1+np.abs(u)))]
+            self.act_der += [
+                np.vectorize(lambda u: 1./(1+np.abs(u))**2)
             ]
         else:
             raise SyntaxError(
@@ -125,10 +134,15 @@ class Neuron:
             self.biases = np.zeros(self.n_hlayers + 1, dtype=np.ndarray)
             for i in range(0, self.n_hlayers + 1):
                 self.biases[i] = np.random.rand(self.nodes[i + 1]) - 0.5
-        elif self.weights_str == "small":
+        elif self.biases_str == "small":
             self.biases = np.zeros(self.n_hlayers + 1, dtype=np.ndarray)
             for i in range(0, self.n_hlayers + 1):
-                self.biases[i] = np.zeros(self.nodes[i + 1]) + 0.1
+                self.biases[i] = np.zeros(self.nodes[i + 1]) + 0.01
+        elif self.biases_str == "xavier":
+            # Xavier initializes with biases=0 for all layers.
+            self.biases = np.zeros(self.n_hlayers + 1, dtype=np.ndarray)
+            for i in range(self.n_hlayers + 1):
+                self.biases[i] = np.zeros(self.nodes[i + 1])
         elif self.biases_str == "custom":
             pass
         else:
@@ -144,12 +158,24 @@ class Neuron:
         elif self.weights_str == "random":
             self.weights = np.zeros(self.n_hlayers + 1, dtype=np.ndarray)
             for i in range(self.n_hlayers + 1):
-                self.weights[i] = np.random.rand(self.nodes[i], self.nodes[i + 1]) - 0.5
+                self.weights[i] = \
+                    np.random.rand(self.nodes[i], self.nodes[i + 1]) - 0.5
                 # should have dim (prev layer x next layer)
         elif self.weights_str == "small":
             self.weights = np.zeros(self.n_hlayers + 1, dtype=np.ndarray)
             for i in range(self.n_hlayers + 1):
-                self.weights[i] = np.zeros(self.nodes[i], self.nodes[i + 1]) + 0.1
+                self.weights[i] = \
+                    np.zeros((self.nodes[i], self.nodes[i + 1])) + 0.01
+        elif self.weights_str == "xavier":
+            # Initialize as Xavier does in his paper:
+            self.weights = np.zeros(self.n_hlayers + 1, dtype=np.ndarray)
+            for i in range(self.n_hlayers + 1):
+                self.weights[i] = \
+                    np.random.normal(
+                        loc=0.0,
+                        scale=np.sqrt(2./(self.nodes[i]+self.nodes[i+1])),
+                        size=(self.nodes[i], self.nodes[i + 1])
+                    )
         elif self.weights_str == "custom":
             pass
         else:
@@ -185,8 +211,9 @@ class Neuron:
             self.cost_der = lambda u: \
                 np.vectorize(-(self.y - u))
         elif self.cost_fn_str == "xentropy":
-            self.cost_fn = lambda u: -self.y * np.log(u) #+ reg(u)
-            self.cost_der = lambda u: u - self.y #+ dreg(u)
+            self.cost_fn = lambda u: -np.sum(sps.xlogy(self.y, u) +\
+                sps.xlogy(1-self.y, 1-u))/self.y.shape[0] #+ self.regularization()
+            self.cost_der = lambda u: u - self.y.reshape(-1, 1)
         else:
             raise SyntaxError("Cost function must be 'MSE' or 'xentropy'")
 
@@ -218,8 +245,6 @@ class Neuron:
         Main program which conducts the forward and backwards
         propogation through the neural network for training.
         """
-        self.err_bw = self.tol_bw + 1  # initialize this for the first loop
-        self.datasets_sampled += 1  # counts how many instances.
 
         self.feedforward()
         self.backpropogate()
@@ -252,7 +277,7 @@ class Neuron:
 
         # Last diff element l=L
         der1 = self.act_der[-1](self.z[-1])
-        der2 = -2 * (self.y.reshape(-1, 1) - self.output[0])
+        der2 = self.cost_der(self.output[0])
         d[-1] = der1 * der2
 
         diff_b[-1] = np.sum(d[-1]).reshape(-1)
@@ -268,17 +293,14 @@ class Neuron:
         diff_b[l] = np.sum(d[l], axis=0)
         diff_w[l] = self.X.T @ d[l]
 
-        self.err_bw = 0
         for i in range(self.n_hlayers + 1):
             # add the regularization term to the weights:
-            diff_w[i] -=  self.hyperp * self.weights[i]/self.features
-            self.biases[i] -= self.eta * diff_b[i]
-            self.weights[i] -= self.eta * diff_w[i]
-            self.err_bw += abs(np.sum(diff_b[i])) + abs(np.sum(diff_w[i]))
-        # The parameter eta is the learning parameter discussed in connection
-        # with the gradient descent methods. Here it is convenient to use
-        # stochastic gradient descent with mini-batches with an outer loop
-        # that steps through the multiple epochs of training. Try to parallize?
+            self.weights[i] = self.weights[i] -\
+                self.hyperp * self.weights[i]/self.features
+
+            # subtract the gradients dC/dW and dC/db
+            self.biases[i] = self.biases[i] - self.eta * diff_b[i]
+            self.weights[i] = self.weights[i] - self.eta * diff_w[i]
 
     def output_func(self):
         """Function to produce an output for a given input"""
@@ -287,11 +309,11 @@ class Neuron:
             iter = self.act_fn[l](iter @ self.weights[l] + self.biases[l])
         self.output = iter
 
-    def train_neuron(self, X, y, epochs, train_no=100):
+    def train_neuron(self, X, y, epochs, save_network=True):
         """Function to train the netorks weights and biases. This function runs
         through one 'epoch' and saves the data as a number between 0 and 1."""
         done = 0
-        iterations = int(train_no / self.batchsize)
+        iterations = int(len(y) / self.batchsize)
         for j in range(epochs):
             for i in range(iterations):
                 s = i * self.batchsize  # start
@@ -302,18 +324,17 @@ class Neuron:
                 if str(self.output) == "[nan]":
                     print("Something went wrong. Output is 'nan'...")
                     break
-                if self.err_bw < self.tol_bw and not done:
-                    print(f"Network is trained up to tolerance after {s} sets.")
-                    done += 1
             X, y = fns.shuffle_Xy(X,y,j)  #shuffle after each epoch for stochasticity
-            if j%10==0:
+            if j%(epochs/10)==0:
                 print(f"Epochs: {(j/epochs)*100:.2f}%." + \
                     f" Cost = {self.cost_fn(self.output)}")
         print("--------------")
         print("Network Trained.")
-        self.save_data()
+        if save_network:
+            self.save_data()
 
-    def test_neuron(self, X, y, load_data, cfn=" "):
+    def test_neuron(self, X, y, load_data, cfn=" ", cumulative_gain=True,\
+            confusion_matrix=True):
         """Function the test the networks capabilities"""
         self.batchsize=10
         if self.verbose:
@@ -333,6 +354,10 @@ class Neuron:
 
         self.declare_results(y[:e], ypred[:e], round=True)
         print(f"Network had an accuracy of {100*self.acc:.2f} %")
+        if cumulative_gain:
+            self.plot_cumulative_gain_NNW(y[:e], ypred[:e])
+        if confusion_matrix:
+            self.plot_confusion_matrix_NNW()
 
     def save_data(self):
         """Function to save the weights and biases for a network"""
@@ -375,13 +400,20 @@ class Neuron:
             ypred[np.where(ypred>=0.5)] = 1
             ypred[np.where(ypred<0.5)]  = 0
             for i in range(len(ytrue)):
-                print(f"Output:\t{ypred[i]}\tTrue:\t{ytrue[i]}" + (\
-                    " Correct!" if ypred[i]==ytrue[i] else " "))
+                if i%20==0:
+                    print(f"Output:\t{ypred[i]}\tTrue:\t{ytrue[i]}" + (\
+                       " Correct!" if ypred[i]==ytrue[i] else " "))
         else:
             for i in range(len(ytrue)):
                 print(f"Output:\t{ypred[i]}\tTrue:\t{ytrue[i]}")
 
         self.acc = fns.assert_binary_accuracy(ytrue, ypred)
+
+    def plot_cumulative_gain_NNW(self, ytrue, ypred):
+        fns.produce_cgchart(ytrue, ypred)
+
+    def plot_confusion_matrix_NNW(self, ytrue, ypred):
+        fns.produce_confusion_mtx(ytrue, ypred)
 
 if __name__ == "__main__":
     pass
