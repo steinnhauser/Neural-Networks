@@ -138,3 +138,6 @@ class StochasticGradientDescent:
         predictors = self.X.shape[1]  # p
         self.beta = (np.random.random(predictors) - 0.5) * 1.4 #  in [-0.7, 0.7]
         return None
+
+if __name__ == '__main__':
+    pass
