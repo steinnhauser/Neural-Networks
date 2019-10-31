@@ -3,9 +3,15 @@ import scipy
 import sklearn
 import tensorflow as tf
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.linear_model import SGDRegressor
 from imblearn.over_sampling import RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler
+from sklearn import decomposition
+from sklearn.preprocessing import StandardScaler
+import scikitplot
+from scikitplot.helpers import cumulative_gain_curve
+import seaborn as sb
 import os
 
 
@@ -17,26 +23,26 @@ def read_in_data(
 
     Parameters:
     -----------
-    fn : str
-        Data filename (+ pathway from the Project2 directory).
-    headers : bool, default False
-        Returns headers (row #1) as a list of strings.
-    shuffle : bool, default False
-        Shuffles the datasets X and y by their rows.
-    seed : int
-        Integer for a random number generator if shuffle=True
-    scale : bool, default False
-        Scales the X and y values to be stochastic.
-        If True, then the intercept=False is required for Regression.
+        fn : str
+            Data filename (+ pathway from the Project2 directory).
+        headers : bool, default False
+            Returns headers (row #1) as a list of strings.
+        shuffle : bool, default False
+            Shuffles the datasets X and y by their rows.
+        seed : int
+            Integer for a random number generator if shuffle=True
+        scale : bool, default False
+            Scales the X and y values to be stochastic.
+            If True, then the intercept=False is required for Regression.
 
     Returns:
     --------
-    X : mtx
-        (N x p) matrix of predictors
-    y : vec
-        (N x 1) vector of outcomes
-    headers : list
-        (1 x p) list of headers
+        X : mtx
+            (N x p) matrix of predictors
+        y : vec
+            (N x 1) vector of outcomes
+        headers : list
+            (1 x p) list of headers
     """
 
     if __name__ == "__main__":
@@ -68,6 +74,7 @@ def read_in_data(
 
 def remove_categorical_outliers(X,y):
     """remove categorical outliers from the X and y data"""
+
     # X2: Gender (1 = male; 2 = female).
     valid_mask = np.logical_and(X[:, 1] >= 1, X[:, 1] <= 2)
     y = y[valid_mask]
@@ -91,6 +98,13 @@ def remove_categorical_outliers(X,y):
         y = y[valid_mask]
         X = X[valid_mask]
     # there are no elements of size 9. There are 25 cases of 8.
+
+    # Filter out all values which cannot be negative (e.g. age, etc.)
+        # X12 - X17 can be negative, the rest cannot.
+    for i in [0, 4, 17, 18, 19, 20, 21, 22]:
+        valid_mask = np.where(X[:, i] >= 0)
+        y = y[valid_mask]
+        X = X[valid_mask]
 
     return X, y
 
@@ -365,7 +379,122 @@ def assert_binary_accuracy(y, u, unscaled=True, verbose=False):
         acc = count / len(y)
         return acc
 
+def corr_heatmap(X):
+    df = pd.DataFrame(X)
+    c  = df.corr().round(2)
+
+    ax = sb.heatmap(data=c)
+    bottom, top = ax.get_ylim()
+    ax.set_ylim(bottom + 0.5, top - 0.5)    # Fix edges
+    plt.xlabel("Feature no.")
+    plt.ylabel("Feature no.")
+    plt.title("Correlation Matrix for the X values before PCA.")
+    plt.show()
+
+def PCA(X, dims_rescaled_data=21):
+    """Perform Principle Component Analysis on the data extracted from the
+    credit card file. Most of this functionality was found on stack overflow"""
+    # pca = decomposition.PCA(n_components=3)
+    # x_std = StandardScaler().fit_transform(X)
+    # a = pca.fit_transform(x_std)
+
+    R = np.cov(X, rowvar=False)
+    evals, evecs = scipy.linalg.eigh(R)
+    idx = np.argsort(evals)[::-1]
+    evecs = evecs[:,idx]
+
+    evals = evals[idx]
+    evecs = evecs[:, :dims_rescaled_data]
+
+    newX = np.dot(evecs.T, X.T).T
+
+    return newX     #, evals, evecs
+
+def produce_cgchart(ytrue, ypred):
+    """Function to produce the cumulative gain chart of the prediction ypred"""
+
+    yprobas = np.append((1-ypred).reshape(-1,1), ypred.reshape(-1,1), axis=1)
+    # 0's and 1's
+    print(yprobas.shape)
+    areas = plot_cumulative_gain(ytrue, yprobas)
+
+def plot_cumulative_gain(y_true, y_probas, title='Cumulative Gains Curve',
+                         ax=None, figsize=None, title_fontsize="large",
+                         text_fontsize="medium"):
+    """Refactored code from scikitplot's plot_cumulative_gain function.
+    Area under curve functionality added and removal of one class option
+    added to the plotting functionality."""
+    y_true = np.array(y_true)
+    y_probas = np.array(y_probas)
+
+    classes = np.unique(y_true)
+    if len(classes) != 2:
+        raise ValueError('Cannot calculate Cumulative Gains for data with '
+                         '{} category/ies'.format(len(classes)))
+
+    # Compute Cumulative Gain Curves
+    percentages, gains1 = cumulative_gain_curve(y_true, y_probas[:, 0],
+                                                classes[0])
+    percentages, gains2 = cumulative_gain_curve(y_true, y_probas[:, 1],
+                                                classes[1])
+    percentages, gains3 = cumulative_gain_curve(y_true, y_true,
+                                                classes[0])
+    percentages, gains4 = cumulative_gain_curve(y_true, y_true,
+                                                classes[1])
+
+    if ax is None:
+        fig, ax = plt.subplots(1, 1, figsize=figsize)
+
+    ax.set_title(title, fontsize=title_fontsize)
+
+    ax.plot(percentages, gains1, lw=3, label='Class {} (pred)'.format(classes[0]))
+    ax.plot(percentages, gains2, lw=3, label='Class {} (pred)'.format(classes[1]))
+    #ax.plot(percentages, gains3, lw=3, label='Class {} (true)'.format(classes[0]))
+    ax.plot(percentages, gains4, lw=3, label='Class {} (true)'.format(classes[1]))
+
+    ax.set_xlim([0.0, 1.0])
+    ax.set_ylim([0.0, 1.1])
+
+    ax.plot([0, 1], [0, 1], 'k--', lw=2, label='Baseline')
+
+    ax.set_xlabel('Percentage of sample', fontsize=text_fontsize)
+    ax.set_ylabel('Gain', fontsize=text_fontsize)
+    ax.tick_params(labelsize=text_fontsize)
+    ax.grid('on')
+    ax.legend(loc='lower right', fontsize=text_fontsize)
+    plt.show()
+    return ax
+
+def produce_confusion_mtx(ytrue, ypred):
+    array = sklearn.metrics.confusion_matrix(ytrue, ypred)
+    ax = sb.heatmap(data=array, annot=True, fmt='.0f')
+    bottom, top = ax.get_ylim()
+    ax.set_ylim(bottom + 0.5, top - 0.5)    # Fix edges
+    plt.xlabel("True")
+    plt.ylabel("Pred")
+    plt.title("Confusion Matrix")
+    plt.show()
+
 
 if __name__ == "__main__":
     # read_in_data("defaulted_cc-clients.xls")
     X, y = load_features_predictors()
+    X, vals, vecs = PCA(X)
+
+"""
+Eigenvalues:
+[ 6.21737460e+00  2.05307487e+00  1.27270469e+00  1.04111035e+00
+  9.35309224e-01  8.87437774e-01  8.76923877e-01  8.10872113e-01
+  7.80412631e-01  7.25738030e-01  6.43154942e-01  4.94652926e-01
+  4.02258064e-01  3.85869302e-01  2.99062139e-01  2.85414510e-01
+  2.67790766e-01  1.81260871e-01  1.76039189e-01  1.38248121e-01
+  1.14314353e-01  9.59725089e-02  8.15746848e-02  7.76195747e-02
+  6.96559299e-02  6.62044636e-02  5.91134507e-02  4.66282961e-02
+  4.29646880e-02  4.25159429e-02  3.70314960e-02  2.65610873e-02
+  2.36917795e-02  2.28140612e-02  1.65373308e-02  1.56695764e-02
+  1.31952962e-02  7.30789430e-03  5.48685451e-03  2.89348812e-03
+  1.19652857e-03  4.97295355e-04  3.08157307e-04  1.67833413e-04
+ -1.15299611e-16 -2.62029371e-16 -3.54134793e-16]
+
+Cutting off at 1e-1 yields 21 PC's
+"""
