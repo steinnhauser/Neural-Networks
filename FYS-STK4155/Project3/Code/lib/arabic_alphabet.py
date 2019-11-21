@@ -28,7 +28,7 @@ class ArabicAlphabet(XGBClassifier):
             self.frac = frac
         else:
             self.balancingStrategy = 'false'
-            
+
         super(ArabicAlphabet, self).__init__(
             seed=500,
             learning_rate = learning_rate,
@@ -107,6 +107,107 @@ class ArabicAlphabet(XGBClassifier):
             f" as a '{self.ypred[ind]}'"
         )
         plt.show()
+
+    def illustrate_label_grid(self):
+        """Function which illustrates 9 plots of misclassifications picked
+        randomly from the 'miscat_inds' list."""
+
+        # randints = np.random.randint(len(self.miscat_inds), size=9)
+        """Need to implement these randints. There are only misclassifications
+        of 'a' being illustrated currently."""
+
+        ax = plt.subplot(331)
+        sb.heatmap(self.Xtest.iloc[self.miscat_inds[0]].values.reshape(28,28).T,
+            cmap="gray", ax=ax, cbar=False)
+        plt.title(f"{self.ytest.iloc[self.miscat_inds[0]]} misclassified as"+
+            f" {self.ypred[self.miscat_inds[0]]}")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        bottom, top = ax.get_ylim()
+        ax.set_ylim(bottom+0.5, top-0.5)
+
+        ax = plt.subplot(332)
+        sb.heatmap(self.Xtest.iloc[self.miscat_inds[1]].values.reshape(28,28).T,
+            cmap="gray", ax=ax, cbar=False)
+        plt.title(f"{self.ytest.iloc[self.miscat_inds[1]]} misclassified as"+
+            f" {self.ypred[self.miscat_inds[1]]}")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        bottom, top = ax.get_ylim()
+        ax.set_ylim(bottom+0.5, top-0.5)
+
+        ax = plt.subplot(333)
+        sb.heatmap(self.Xtest.iloc[self.miscat_inds[2]].values.reshape(28,28).T,
+            cmap="gray", ax=ax, cbar=False)
+        plt.title(f"{self.ytest.iloc[self.miscat_inds[2]]} misclassified as"+
+            f" {self.ypred[self.miscat_inds[2]]}")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        bottom, top = ax.get_ylim()
+        ax.set_ylim(bottom+0.5, top-0.5)
+
+        ax = plt.subplot(334)
+        sb.heatmap(self.Xtest.iloc[self.miscat_inds[3]].values.reshape(28,28).T,
+            cmap="gray", ax=ax, cbar=False)
+        plt.title(f"{self.ytest.iloc[self.miscat_inds[3]]} misclassified as"+
+            f" {self.ypred[self.miscat_inds[3]]}")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        bottom, top = ax.get_ylim()
+        ax.set_ylim(bottom+0.5, top-0.5)
+
+        ax = plt.subplot(335)
+        sb.heatmap(self.Xtest.iloc[self.miscat_inds[4]].values.reshape(28,28).T,
+            cmap="gray", ax=ax, cbar=False)
+        plt.title(f"{self.ytest.iloc[self.miscat_inds[4]]} misclassified as"+
+            f" {self.ypred[self.miscat_inds[4]]}")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        bottom, top = ax.get_ylim()
+        ax.set_ylim(bottom+0.5, top-0.5)
+
+        ax = plt.subplot(336)
+        sb.heatmap(self.Xtest.iloc[self.miscat_inds[5]].values.reshape(28,28).T,
+            cmap="gray", ax=ax, cbar=False)
+        plt.title(f"{self.ytest.iloc[self.miscat_inds[5]]} misclassified as"+
+            f" {self.ypred[self.miscat_inds[5]]}")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        bottom, top = ax.get_ylim()
+        ax.set_ylim(bottom+0.5, top-0.5)
+
+        ax = plt.subplot(337)
+        sb.heatmap(self.Xtest.iloc[self.miscat_inds[6]].values.reshape(28,28).T,
+            cmap="gray", ax=ax, cbar=False)
+        plt.title(f"{self.ytest.iloc[self.miscat_inds[6]]} misclassified as"+
+            f" {self.ypred[self.miscat_inds[6]]}")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        bottom, top = ax.get_ylim()
+        ax.set_ylim(bottom+0.5, top-0.5)
+
+        ax = plt.subplot(338)
+        sb.heatmap(self.Xtest.iloc[self.miscat_inds[7]].values.reshape(28,28).T,
+            cmap="gray", ax=ax, cbar=False)
+        plt.title(f"{self.ytest.iloc[self.miscat_inds[7]]} misclassified as"+
+            f" {self.ypred[self.miscat_inds[7]]}")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        bottom, top = ax.get_ylim()
+        ax.set_ylim(bottom+0.5, top-0.5)
+
+        ax = plt.subplot(339)
+        sb.heatmap(self.Xtest.iloc[self.miscat_inds[8]].values.reshape(28,28).T,
+            cmap="gray", ax=ax, cbar=False)
+        plt.title(f"{self.ytest.iloc[self.miscat_inds[8]]} misclassified as"+
+            f" {self.ypred[self.miscat_inds[8]]}")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        bottom, top = ax.get_ylim()
+        ax.set_ylim(bottom+0.5, top-0.5)
+
+        plt.show()
+
 
 if __name__ == '__main__':
     pass
