@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from lib.datascaler import DataScaler
 from lib.arabic_numerals import ArabicNumerals
 from lib.arabic_alphabet import ArabicAlphabet
+from lib.arabic_balanced import ArabicBalanced
 
 
 def tiny_eeg_data():
@@ -81,9 +82,11 @@ def MNIST_data(p):
     a.illustrate_performance()
     a.incorrect_labels()
     # To illustrate some of the misclassifications:
-    a.illustrate_label(a.miscat_inds[0])
+    a.illustrate_label(a.miscat_inds[2])
 
-def EMNIST_data(p):
+def EMNIST_data_letters(p):
+    """Function to perform regression on only
+    the letters of the EMNIST data set."""
     train = pd.read_csv("EMNIST_data/emnist_csv/emnist-letters-train.csv")
     test = pd.read_csv("EMNIST_data/emnist_csv/emnist-letters-test.csv")
     """
@@ -100,7 +103,7 @@ def EMNIST_data(p):
 
     train.columns = labels
     test.columns = labels
-    test = test.sample(frac=1)
+    # test = test.sample(frac=1)
 
     """Strangely enough, the max value of the testing data is only up to 19."""
 
@@ -132,6 +135,63 @@ def EMNIST_data(p):
     a.illustrate_performance()
     a.incorrect_labels()
     a.illustrate_label(a.miscat_inds[0]) # illustrate some misclassifications
+    a.illustrate_label_grid()
+
+def EMNIST_data_balanced(p):
+    """Main function to analyze the balanced data."""
+    train = pd.read_csv("EMNIST_data/emnist_csv/emnist-balanced-train.csv")
+    test = pd.read_csv("EMNIST_data/emnist_csv/emnist-balanced-test.csv")
+
+    """
+    Values range from 0 to 255, and the first
+    column is the label of the image. Data shapes are:
+    (112799, 785)
+    (18799, 785)
+    """
+
+    labels = ["label"]
+    for i in range(1, 29):
+        for j in range(1, 29):
+            labels.append(str(j)+"x"+str(i))
+
+    train.columns = labels
+    test.columns = labels
+
+    frac = 5000
+    X_train = train.loc[:frac, train.columns!="label"]
+    y_train = \
+        pd.Series(train.loc[:frac, train.columns=="label"].values.reshape(-1,))
+    X_test = test.loc[:frac, test.columns!="label"]
+    y_test = \
+        pd.Series(test.loc[:frac, test.columns=="label"].values.reshape(-1,))
+
+    print(y_train.max())
+    exit()
+
+    # transform the first row to be alphabetical instead of hexadecimal:
+    # import string
+    # ascii_list = list(string.ascii_lowercase)
+    # y_train = y_train.apply(lambda x: str(ascii_list[x-1]))
+    # y_test = y_test.apply(lambda x: str(ascii_list[x-1]))
+
+    a = ArabicBalanced(modelname = "BEMNIST_1", verbose=True)
+    a.set_data(X_train, y_train, X_test, y_test)
+
+    if p["create_model"]:
+        print("Generating model...")
+        a.fit_data()
+        a.save()
+    else:
+        print("Loading model...")
+        a.load()
+
+    a.predict_data()
+    # a.assert_performance()
+    # a.illustrate_performance()
+    a.incorrect_labels()
+    a.illustrate_label(0) # illustrate some misclassifications a.miscat_inds[0]
+    a.illustrate_label_grid()
+
 
 if __name__ == '__main__':
     # tiny_eeg_data()
